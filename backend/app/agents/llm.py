@@ -132,10 +132,26 @@ def _stub_proposal(brk: dict):
     )
 
 
+_PROVIDER_KEY_VAR = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "azure_openai": "AZURE_OPENAI_API_KEY",
+    "google_genai": "GOOGLE_API_KEY",
+    "groq": "GROQ_API_KEY",
+    "mistralai": "MISTRAL_API_KEY",
+}
+
+
 def get_llm() -> BaseChatModel:
     s = get_settings()
     if s.llm_model.lower() in ("stub", "none", ""):
         return StubChatModel()
+    import os
+
+    provider = s.llm_model.split(":", 1)[0] if ":" in s.llm_model else "anthropic"
+    var = _PROVIDER_KEY_VAR.get(provider)
+    if s.llm_api_key and var and not os.environ.get(var):
+        os.environ[var] = s.llm_api_key
     from langchain.chat_models import init_chat_model
 
     return init_chat_model(s.llm_model, temperature=s.llm_temperature)

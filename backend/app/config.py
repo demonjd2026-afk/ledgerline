@@ -31,6 +31,7 @@ class Settings(BaseSettings):
 
     # Agents
     llm_model: str = "anthropic:claude-sonnet-4-5"
+    llm_api_key: str = ""  # provider-agnostic; exported to ANTHROPIC_API_KEY / OPENAI_API_KEY etc. based on llm_model
     llm_temperature: float = 0.0
     policy_path: Path = BACKEND_DIR / "policy.yaml"
     agent_max_tool_calls: int = 12
