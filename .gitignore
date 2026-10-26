@@ -17,3 +17,4 @@ frontend/dist/
 .DS_Store
 *.log
 frontend/tsconfig.tsbuildinfo
+backend/.ledgerline-seed.json

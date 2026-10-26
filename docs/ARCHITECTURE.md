@@ -147,6 +147,7 @@ Rules are pure functions `(projections) -> list[Break]`, registered in
 | `ORDER_AMOUNT_MISMATCH` | Σ captures ≠ order amount after order is COMPLETED | critical |
 | `REFUND_EXCEEDS_CAPTURE` | Σ refunds > capture amount | critical |
 | `DUPLICATE_CAPTURE` | Two completed captures for one order without a matching void | critical |
+| `DUPLICATE_ORDER` | Same customer, same amount, two completed orders within 10 minutes (double-click checkout); fires on the later order until it is refunded | critical |
 | `CAPTURE_WITHOUT_ORDER` | Capture referenced an order not in the ledger (after a fetch attempt) | warn |
 | `WEBHOOK_API_DRIFT` | Status/amount from webhook disagrees with status/amount from API/poll for the same resource | critical |
 | `STALE_AUTHORIZATION` | Authorisation older than the honour window with no capture/void | warn |

@@ -45,13 +45,16 @@ Open **Agent runs**, select the executed one.
 
 "Every run is a checkpointed LangGraph: triage, specialist, bounded tool calls, structured
 proposal, policy gate. The agent only has read tools. The one code path that touches
-PayPal runs after the gate. And here's a refund that ran without me — $1.00 over-charge,
-fresh order, no dispute, under the threshold in policy.yaml — executed and logged."
+PayPal runs after the gate. And here's one that ran without me: a customer double-clicked
+checkout and paid $18.50 twice. Under the threshold, fresh order, no dispute — the agent
+refunded the duplicate at PayPal on its own. Here's the refund in the sandbox."
+
+Switch to the PayPal sandbox dashboard and show the refund on the second order.
 
 ## 2:10–2:40 — what's underneath (Ledger tab, then README)
 
 "Underneath: idempotent ledger, deterministic projections you can rebuild from scratch,
-Postgres queue, Render deployment with a worker and a web service. Twenty-three tests
+Postgres queue, Render deployment with a worker and a web service. Twenty-five tests
 against a real database. And a fixture replay so anyone can run this demo in five minutes
 with no keys at all."
 

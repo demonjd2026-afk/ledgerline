@@ -99,3 +99,24 @@ def poll_disputes(session: Session, paypal: PayPalClient) -> int:
             break
     log.info("poll.disputes", observed=n)
     return n
+
+
+def poll_payouts(session: Session, paypal: PayPalClient) -> int:
+    """Re-read payout batches that still have non-terminal items (PENDING/UNCLAIMED/ONHOLD)."""
+    from sqlalchemy import select
+
+    from app.domain.models import PayoutItem
+    from app.sim.seed import record_payout_batch
+
+    batches = {
+        r[0]
+        for r in session.execute(
+            select(PayoutItem.batch_id).where(PayoutItem.batch_id.is_not(None), PayoutItem.status.in_(["PENDING", "UNCLAIMED", "ONHOLD", "NEW"]))
+        ).all()
+    }
+    n = 0
+    for b in batches:
+        n += record_payout_batch(session, paypal, b)
+    if n:
+        log.info("poll.payouts", observed=n, batches=len(batches))
+    return n

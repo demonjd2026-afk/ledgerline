@@ -143,6 +143,7 @@ export function ago(iso: string | null | undefined): string {
 export const RULE_LABEL: Record<string, string> = {
   ORDER_AMOUNT_MISMATCH: "Captured ≠ order amount",
   DUPLICATE_CAPTURE: "Order captured twice",
+  DUPLICATE_ORDER: "Customer charged twice",
   CAPTURE_WITHOUT_ORDER: "Capture for unknown order",
   REFUND_EXCEEDS_CAPTURE: "Refunds exceed capture",
   WEBHOOK_API_DRIFT: "Ledger disagrees with PayPal",

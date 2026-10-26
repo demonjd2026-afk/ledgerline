@@ -23,7 +23,7 @@ def _handlers() -> dict[str, Callable]:
     # Imported lazily so the worker can start even if the agent stack is misconfigured.
     from app.agents.runner import run_agent_job
     from app.ingest.pipeline import process_webhook
-    from app.ingest.poller import poll_disputes, poll_transactions
+    from app.ingest.poller import poll_disputes, poll_payouts, poll_transactions
     from app.recon.engine import reconcile_all
 
     def _poll(session, payload, paypal):
@@ -31,6 +31,7 @@ def _handlers() -> dict[str, Callable]:
             return
         poll_transactions(session, paypal)
         poll_disputes(session, paypal)
+        poll_payouts(session, paypal)
         for b in reconcile_all(session):
             if b.severity in ("critical", "warn"):
                 queue.enqueue(session, "run_agent", dedupe_key=f"break:{b.id}", payload={"break_id": b.id})

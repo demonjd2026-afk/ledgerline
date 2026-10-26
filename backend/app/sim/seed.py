@@ -31,6 +31,18 @@ def _rid() -> str:
     return str(uuid.uuid4())
 
 
+def create_wallet_order(pp: PayPalClient, amount_minor: int, custom_id: str, currency: str = "USD") -> tuple[dict, str]:
+    """An order paid with the PayPal wallet: needs the buyer's approval in a browser. Returns (order, approve_url)."""
+    body = {
+        "intent": "CAPTURE",
+        "purchase_units": [{"custom_id": custom_id, "amount": {"currency_code": currency, "value": to_decimal_str(amount_minor, currency)}}],
+        "payment_source": {"paypal": {"experience_context": {"return_url": "https://example.com/return", "cancel_url": "https://example.com/cancel", "user_action": "PAY_NOW"}}},
+    }
+    order = pp.create_order(body, request_id=_rid())
+    approve = next((link["href"] for link in order.get("links", []) if link.get("rel") in ("payer-action", "approve")), "")
+    return order, approve
+
+
 def create_card_order(pp: PayPalClient, amount_minor: int, custom_id: str, currency: str = "USD") -> dict:
     body = {
         "intent": "CAPTURE",
@@ -95,9 +107,21 @@ def seed(session: Session, pp: PayPalClient, n_orders: int = 6, seed_value: int 
         created.append(order)
         log.info("seed.order", id=order["id"], status=order.get("status"), amount=amount)
 
+    # A double-click at checkout: the same cart paid twice, 30 seconds apart. Under $25, so policy
+    # lets the agent refund the duplicate on its own.
+    try:
+        name, amount = "Notebook set", 1850
+        for _ in range(2):
+            o = create_card_order(pp, amount, "CART-7731")
+            record_order_as_webhook(session, o)
+            created.append(o)
+            log.info("seed.duplicate_checkout", id=o["id"], amount=amount)
+    except PayPalError as exc:
+        log.error("seed.duplicate_failed", error=str(exc))
+
     # A legitimate partial refund on one order, recorded correctly.
     if created:
-        o = rnd.choice(created)
+        o = rnd.choice(created[:n_orders])  # never the duplicate pair: that refund is the agent's job
         cap = _first_capture(o)
         if cap:
             ref = pp.refund_capture(cap["id"], {"currency_code": "USD", "value": "5.00"}, "Goodwill partial refund", request_id=_rid())
@@ -115,7 +139,10 @@ def seed(session: Session, pp: PayPalClient, n_orders: int = 6, seed_value: int 
             },
             request_id=_rid(),
         )
-        log.info("seed.payout", batch=batch.get("batch_header", {}).get("payout_batch_id"))
+        batch_id = batch.get("batch_header", {}).get("payout_batch_id")
+        log.info("seed.payout", batch=batch_id)
+        if batch_id:
+            record_payout_batch(session, pp, batch_id)
     except PayPalError as exc:
         log.warning("seed.payout_failed", error=str(exc))
 
@@ -199,6 +226,40 @@ def inject(session: Session, pp: PayPalClient, order_ids: list[str]) -> dict:
     )
     results["ghost_capture"] = {"order": o3, "capture": ghost["id"]}
     return results
+
+
+def record_payout_batch(session: Session, pp: PayPalClient, batch_id: str) -> int:
+    """Read a payout batch's items and record each as a payout-item event (what the
+    PAYMENT.PAYOUTS-ITEM.* webhooks would carry)."""
+    try:
+        batch = pp.get_payout_batch(batch_id)
+    except PayPalError as exc:
+        log.warning("payout.fetch_failed", batch=batch_id, error=str(exc))
+        return 0
+    n = 0
+    for it in batch.get("items") or []:
+        item_id = it.get("payout_item_id")
+        if not item_id:
+            continue
+        status = it.get("transaction_status") or "PENDING"
+        payload = {**it, "payout_batch_id": batch_id}
+        ingest_event(
+            session,
+            LedgerEvent(
+                event_key=LedgerEvent.key("poll", item_id, f"PAYOUT_{status}_{it.get('time_processed', '')}"),
+                source="poll",
+                event_type=EventType.PAYOUT_ITEM_SUCCEEDED if status == "SUCCESS" else EventType.PAYOUT_ITEM_FAILED if status in ("FAILED", "BLOCKED", "RETURNED", "UNCLAIMED", "DENIED") else EventType.PAYOUT_ITEM_SUCCEEDED,
+                resource_type=ResourceType.PAYOUT_ITEM,
+                resource_id=item_id,
+                occurred_at=parse_ts(it.get("time_processed") or batch.get("batch_header", {}).get("time_completed") or batch.get("batch_header", {}).get("time_created")),
+                payload=payload,
+                amount=Money.from_paypal((it.get("payout_item") or {}).get("amount")),
+                correlation_id=batch_id,
+            ),
+            None,
+        )
+        n += 1
+    return n
 
 
 # ---------------------------------------------------------------- helpers

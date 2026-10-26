@@ -44,7 +44,7 @@ class StubChatModel(BaseChatModel):
         if schema is Triage:
             if rule.startswith("DISPUTE"):
                 spec = "dispute_defender"
-            elif rule in ("ORDER_AMOUNT_MISMATCH", "DUPLICATE_CAPTURE"):
+            elif rule in ("ORDER_AMOUNT_MISMATCH", "DUPLICATE_CAPTURE", "DUPLICATE_ORDER"):
                 spec = "refund_advisor"
             else:
                 spec = "drift_explainer"
@@ -81,6 +81,18 @@ def _stub_proposal(brk: dict):
     cur = brk.get("currency") or "USD"
     delta = int(brk.get("delta_minor") or 0)
     rid, corr = brk.get("resource_id"), brk.get("correlation_id")
+    if rule == "DUPLICATE_ORDER":
+        return Proposal(
+            action="refund",
+            headline=f"Refund the duplicate {delta/100:.2f} {cur} charge on order {rid} in full.",
+            rationale=f"Customer {obs.get('customer')} was charged {obs.get('amount')} twice {obs.get('seconds_apart')}s apart; both orders captured. The second capture {obs.get('capture_to_refund')} is the duplicate and should be refunded in full.",
+            confidence=0.9,
+            capture_id=obs.get("capture_to_refund"),
+            order_id=rid,
+            amount_minor=delta,
+            currency=cur,
+            note_to_payer="You were charged twice for the same order; this refunds the duplicate charge.",
+        )
     if rule in ("ORDER_AMOUNT_MISMATCH", "DUPLICATE_CAPTURE") and delta > 0:
         caps = obs.get("captures") or []
         return Proposal(

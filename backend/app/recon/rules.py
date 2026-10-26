@@ -118,6 +118,50 @@ def order_amount_mismatch(s: Scope) -> list[Finding]:
     return out
 
 
+@rule("DUPLICATE_ORDER")
+def duplicate_order(s: Scope) -> list[Finding]:
+    """The same customer charged twice for the same amount within a short window: the classic
+    double-click at checkout. Fires on the *later* order; skipped once that order is refunded."""
+    window = timedelta(minutes=get_settings().duplicate_order_window_minutes)
+    by_key: dict[tuple, list[Order]] = {}
+    for o in s.orders.values():
+        if o.status != "COMPLETED":
+            continue
+        ident = o.payer_id or o.payer_email or o.custom_id
+        if not ident:
+            continue
+        by_key.setdefault((ident, o.amount_minor, o.currency), []).append(o)
+    out = []
+    for (ident, amount, cur), orders in by_key.items():
+        if len(orders) < 2:
+            continue
+        orders.sort(key=lambda o: o.created_at)
+        for first, later in zip(orders, orders[1:], strict=False):
+            if later.created_at - first.created_at > window:
+                continue
+            caps = [c for c in s.captures_for(later.id) if c.status in ("COMPLETED", "PARTIALLY_REFUNDED", "PENDING")]
+            if not caps:
+                continue
+            refunded = sum(r.amount_minor for c in caps for r in s.refunds_for_capture(c.id) if r.status in ("COMPLETED", "PENDING"))
+            if refunded >= later.amount_minor:
+                continue  # already made right
+            out.append(
+                Finding(
+                    rule="DUPLICATE_ORDER",
+                    severity="critical",
+                    resource_type="order",
+                    resource_id=later.id,
+                    correlation_id=later.id,
+                    title=f"Customer {ident} charged {_fmt(amount, cur)} twice within {int((later.created_at - first.created_at).total_seconds() // 60)} min (orders {first.id}, {later.id})",
+                    expected={"orders_for_this_cart": 1, "first_order": first.id},
+                    observed={"orders": [first.id, later.id], "customer": ident, "amount": _fmt(amount, cur), "capture_to_refund": caps[-1].id, "seconds_apart": int((later.created_at - first.created_at).total_seconds())},
+                    delta_minor=later.amount_minor - refunded,
+                    currency=cur,
+                )
+            )
+    return out
+
+
 @rule("DUPLICATE_CAPTURE")
 def duplicate_capture(s: Scope) -> list[Finding]:
     out = []

@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     dispute_sla_hours: int = 72
     settlement_lag_hours: int = 24
     payout_fee_band_bps: int = 300  # ±3% of expected fee
+    duplicate_order_window_minutes: int = 10
 
     # Web
     operator_token: str = ""  # when set, every /api request must carry X-Operator-Token; always set this in prod

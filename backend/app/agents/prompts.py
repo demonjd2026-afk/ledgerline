@@ -22,6 +22,9 @@ Break types and what good looks like:
   (ledger vs PayPal) by fetching PayPal's view. If PayPal is authoritative and the ledger is
   stale, propose ledger_correction with the exact fields. If the merchant actually over-charged,
   propose refund of exactly the delta.
+- DUPLICATE_ORDER: the same customer paid twice for the same cart. Confirm both captures exist
+  at PayPal (they will), then propose a full refund of the LATER capture
+  (``observed.capture_to_refund``) with a clear note to the payer.
 - REFUND_EXCEEDS_CAPTURE: this is usually a ledger error (duplicate webhook delivery or a refund
   recorded twice). Verify each refund id with PayPal; propose ledger_correction or escalate.
 - DISPUTE_RESPONSE_DUE: build the strongest honest evidence packet from the order chain

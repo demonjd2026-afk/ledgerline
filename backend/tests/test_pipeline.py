@@ -112,6 +112,25 @@ def test_silent_refund_at_paypal_opens_drift(session):
     assert "WEBHOOK_API_DRIFT" in rules
 
 
+def test_duplicate_order_fires_on_later_order_and_clears_after_refund(session):
+    from datetime import timedelta
+
+    a = _order("OA", "18.50", [("CA", "18.50")]); a["payer"] = {"email_address": "lena@example.com", "payer_id": "P1"}
+    b = _order("OB", "18.50", [("CB", "18.50")]); b["payer"] = {"email_address": "lena@example.com", "payer_id": "P1"}
+    b["create_time"] = (NOW + timedelta(seconds=40)).isoformat()
+    _append_order(session, a)
+    store.append(session, LedgerEvent(LedgerEvent.key("webhook", "WH-OB", EventType.ORDER_COMPLETED), "webhook", EventType.ORDER_COMPLETED, ResourceType.ORDER, "OB", NOW + timedelta(seconds=40), b, Money(1850, "USD"), "OB"))
+    found = [x for x in reconcile(session, "OB") if x.rule == "DUPLICATE_ORDER"]
+    assert len(found) == 1 and found[0].resource_id == "OB" and found[0].observed["capture_to_refund"] == "CB"
+    # The agent refunds it (dry run) automatically: under $25, fresh, no dispute.
+    run = start_run(session, found[0].id, None)
+    assert run.status == "executed"
+    ap = session.execute(select(Approval).where(Approval.agent_run_id == run.id)).scalar_one()
+    assert ap.action == "refund" and ap.policy_decision == "auto" and ap.proposal["capture_id"] == "CB"
+    assert session.get(Break, found[0].id).status == "resolved"
+    assert "DUPLICATE_ORDER" not in {x.rule for x in reconcile(session, "OB")}
+
+
 # ---------------------------------------------------------------- agents + policy
 
 
@@ -177,5 +196,5 @@ def test_demo_fixture_produces_expected_breaks(session):
     replay_file(session, FIXTURES / "demo.jsonl")
     reconcile_all(session)
     rules = {b.rule for b in session.execute(select(Break).where(Break.status != "resolved")).scalars()}
-    assert {"ORDER_AMOUNT_MISMATCH", "DUPLICATE_CAPTURE", "WEBHOOK_API_DRIFT", "DISPUTE_RESPONSE_DUE", "REFUND_EXCEEDS_CAPTURE", "PAYOUT_ITEM_FAILED", "PAYOUT_FEE_VARIANCE", "INVOICE_PAID_NO_CAPTURE"} <= rules
+    assert {"ORDER_AMOUNT_MISMATCH", "DUPLICATE_CAPTURE", "WEBHOOK_API_DRIFT", "DISPUTE_RESPONSE_DUE", "REFUND_EXCEEDS_CAPTURE", "PAYOUT_ITEM_FAILED", "PAYOUT_FEE_VARIANCE", "INVOICE_PAID_NO_CAPTURE", "DUPLICATE_ORDER"} <= rules
     assert "CAPTURE_WITHOUT_ORDER" not in rules

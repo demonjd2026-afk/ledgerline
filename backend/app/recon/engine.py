@@ -89,6 +89,23 @@ def load_scope(session: Session, correlation_id: str | None = None, resource: tu
             scope.transactions[rid] = t
             if c := session.get(Capture, rid):
                 scope.captures[c.id] = c
+    # Duplicate-order detection needs the customer's other orders for the same amount.
+    for o in list(scope.orders.values()):
+        ident_filters = [f for f in (
+            Order.payer_id == o.payer_id if o.payer_id else None,
+            Order.payer_email == o.payer_email if o.payer_email else None,
+            Order.custom_id == o.custom_id if o.custom_id else None,
+        ) if f is not None]
+        if not ident_filters:
+            continue
+        for sib in session.execute(
+            select(Order).where(or_(*ident_filters), Order.amount_minor == o.amount_minor, Order.id != o.id)
+        ).scalars():
+            scope.orders[sib.id] = sib
+            for c in session.execute(select(Capture).where(Capture.order_id == sib.id)).scalars():
+                scope.captures[c.id] = c
+            for r in session.execute(select(Refund).where(Refund.order_id == sib.id)).scalars():
+                scope.refunds[r.id] = r
     # Every capture in scope brings its order (and that order's other captures/refunds), so
     # order-level rules see the whole chain rather than a fragment.
     for c in list(scope.captures.values()):

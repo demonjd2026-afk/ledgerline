@@ -170,6 +170,27 @@ def inject(seed_file: Path = Path(".ledgerline-seed.json")):
     _print_breaks()
 
 
+@sim.command("wallet-order")
+def wallet_order(amount: float = 49.0, custom_id: str = "WALLET-1"):
+    """Create an order paid with the PayPal wallet so a buyer can later open a dispute on it.
+
+    Prints an approval link: open it, log in as your sandbox *personal* account, approve. Then press Enter here
+    and the order is captured and recorded. From the buyer's sandbox account you can then open a dispute
+    (Activity -> the payment -> Report a problem), which Ledgerline's poller picks up."""
+    from app.domain.money import to_minor
+    from app.sim.seed import create_wallet_order, record_order_as_webhook
+
+    pp = _paypal()
+    order, approve = create_wallet_order(pp, to_minor(amount, "USD"), custom_id)
+    typer.echo(f"Order {order['id']} created. Approve it as the buyer:\n\n  {approve}\n")
+    typer.prompt("Press Enter after approving", default="", show_default=False)
+    captured = pp.capture_order(order["id"], request_id=f"cap-{order['id']}")
+    with _session() as s:
+        record_order_as_webhook(s, captured)
+    cap = ((captured.get("purchase_units") or [{}])[0].get("payments") or {}).get("captures") or [{}]
+    typer.echo(f"Captured {cap[0].get('id')} status={cap[0].get('status')}. Now open a dispute on it from the buyer account.")
+
+
 @sim.command()
 def record(out: Path = Path("recorded.jsonl"), hours: int = 72):
     """Pull the sandbox's recent transactions and disputes into a replayable fixture."""

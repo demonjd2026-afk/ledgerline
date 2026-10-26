@@ -29,14 +29,14 @@ API — but nobody is joining it, and nobody is acting on it at 2 a.m.
    Disputes as a second source of truth.
 2. **Records** each one as an immutable, idempotent ledger event, then projects orders,
    captures, refunds, payouts, disputes and invoices from it. Replay is deterministic.
-3. **Reconciles** with twelve rules that emit typed *breaks*: `expected`, `observed`,
+3. **Reconciles** with thirteen rules that emit typed *breaks*: `expected`, `observed`,
    `delta`, severity. A break that stops firing resolves itself.
 4. **Investigates** each break with a LangGraph agent — triage, then a specialist
    (dispute defender, refund advisor, drift explainer) that uses PayPal's official MCP
    server (`@paypal/mcp`, read-only tools) plus ledger tools, and must return a
    structured proposal, never prose.
-5. **Gates** the proposal with a versioned YAML policy: a $14 refund on a fresh order runs
-   itself; anything touching a dispute, or above threshold, pauses the graph for a human.
+5. **Gates** the proposal with a versioned YAML policy: refunding an $18.50 duplicate checkout
+   runs itself; anything touching a dispute, or above threshold, pauses the graph for a human.
 6. **Executes** through one audited path with idempotency keys derived from the approval,
    so a retry can never refund twice or submit evidence twice.
 7. **Shows** all of it in an operator console: breaks as ledger lines, proposals with the
@@ -82,8 +82,8 @@ LLM_MODEL=stub PAYPAL_DRY_RUN=true ledgerline sim replay
 ledgerline api            # http://localhost:8000
 ```
 
-You will see 8 open breaks across five scenarios, 6 proposals waiting for approval and 1
-that policy executed on its own. Approve one in **Approvals** and watch the break resolve
+You will see 9 open breaks across six scenarios, 6 proposals waiting for approval and 2
+that policy executed on its own (an informational close, and a real duplicate-checkout refund). Approve one in **Approvals** and watch the break resolve
 and the ledger gain a correction event. `ledgerline reconcile` re-runs every rule.
 
 `LLM_MODEL=stub` is a deterministic agent that produces the same proposals every time, so
@@ -103,8 +103,9 @@ PAYPAL_WEBHOOK_ID=...         # register https://<your-host>/webhooks/paypal, su
 LLM_MODEL=anthropic:claude-sonnet-4-5
 ANTHROPIC_API_KEY=...
 
-ledgerline sim seed           # creates card orders, a refund, a payout batch, an invoice in your sandbox
+ledgerline sim seed           # card orders, a double-click duplicate checkout, a refund, a payout batch, an invoice
 ledgerline sim inject         # silent refund at PayPal, duplicate refund record, ghost capture
+ledgerline sim wallet-order   # a wallet-paid order you can open a real dispute on from the buyer account
 ledgerline worker             # in a second terminal: drains jobs, runs agents, polls every 5 min
 ledgerline api
 ```
