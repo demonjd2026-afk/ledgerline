@@ -1,6 +1,15 @@
 # Ledgerline
 
+[![CI](https://github.com/demonjd2026-afk/ledgerline/actions/workflows/ci.yml/badge.svg)](https://github.com/demonjd2026-afk/ledgerline/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/demonjd2026-afk/ledgerline/actions/workflows/codeql.yml/badge.svg)](https://github.com/demonjd2026-afk/ledgerline/actions/workflows/codeql.yml)
+[![Live demo](https://img.shields.io/badge/live%20demo-Render-46E3B7)](https://ledgerline-wcpx.onrender.com)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+
 **Autonomous revenue-operations agent for PayPal merchants.**
+
+- **Keeps its own books.** Every PayPal webhook and API fact becomes an immutable ledger event; orders, captures, refunds, payouts, disputes and invoices are projections you can rebuild.
+- **Notices the moment PayPal and the books disagree.** Thirteen reconciliation rules emit typed breaks with expected / observed / delta.
+- **Fixes what it is allowed to, asks about the rest.** A LangGraph agent investigates with read-only tools (ledger + PayPal's MCP server) and returns a structured proposal; a versioned YAML policy decides what runs unattended; one audited executor with idempotency keys does the writing.
 
 Ledgerline keeps an independent, event-sourced ledger of everything that happens on a
 PayPal account, reconciles it continuously against PayPal's own APIs, and dispatches AI
@@ -44,7 +53,8 @@ API — but nobody is joining it, and nobody is acting on it at 2 a.m.
 
 ![Ledgerline architecture](docs/architecture.svg)
 
-Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · security: [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) ·
+decisions: [`docs/adr/`](docs/adr/README.md) · operations: [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 
 ## PayPal surface used
 
@@ -168,7 +178,7 @@ Every approval row records the policy version and the reasons that decided it.
   migrations, generated operator token, fixture seeding on first boot.
 - **PayPal MCP server** — `@paypal/mcp` is the agent's PayPal tool source, per docs.paypal.ai.
 
-Submission text lives in [`docs/SUBMISSION.md`](docs/SUBMISSION.md); the video script in [`docs/DEMO.md`](docs/DEMO.md).
+Submission text lives in [`docs/SUBMISSION.md`](docs/SUBMISSION.md).
 
 ## Project layout
 
