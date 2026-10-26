@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import UTC
 from pathlib import Path
 
 import typer
@@ -38,7 +39,7 @@ def migrate():
 
 
 @app.command()
-def api(host: str = "0.0.0.0", port: int = 8000, reload: bool = False):
+def api(host: str = "127.0.0.1", port: int = 8000, reload: bool = False):
     """Run the API (and the built dashboard, if present)."""
     import uvicorn
 
@@ -172,10 +173,10 @@ def inject(seed_file: Path = Path(".ledgerline-seed.json")):
 @sim.command()
 def record(out: Path = Path("recorded.jsonl"), hours: int = 72):
     """Pull the sandbox's recent transactions and disputes into a replayable fixture."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     pp = _paypal()
-    end = datetime.now(tz=timezone.utc)
+    end = datetime.now(tz=UTC)
     start = end - timedelta(hours=hours)
     fmt = "%Y-%m-%dT%H:%M:%S-0000"
     lines = []

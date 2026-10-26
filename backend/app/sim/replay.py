@@ -6,7 +6,14 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.domain.events import EventType, LedgerEvent, ResourceType, correlation_from_resource, normalise_webhook, parse_ts
+from app.domain.events import (
+    EventType,
+    LedgerEvent,
+    ResourceType,
+    correlation_from_resource,
+    normalise_webhook,
+    parse_ts,
+)
 from app.domain.money import Money
 from app.ingest.pipeline import ingest_event
 from app.logging import get_logger

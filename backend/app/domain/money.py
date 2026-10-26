@@ -16,14 +16,14 @@ def minor_units(currency: str) -> int:
     return 0 if currency.upper() in _ZERO_DECIMAL else 2
 
 
-def to_minor(value: str | Decimal | int | float, currency: str) -> int:
+def to_minor(value: str | Decimal | float, currency: str) -> int:
     """'12.34', 'USD' -> 1234. Raises ValueError on garbage."""
     try:
         dec = Decimal(str(value))
     except InvalidOperation as exc:  # pragma: no cover - defensive
         raise ValueError(f"bad amount {value!r}") from exc
     scale = Decimal(10) ** minor_units(currency)
-    return int((dec * scale).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return int((dec * scale).quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
 def to_decimal_str(minor: int, currency: str) -> str:
@@ -42,7 +42,7 @@ class Money:
     currency: str
 
     @classmethod
-    def from_paypal(cls, obj: dict | None) -> "Money | None":
+    def from_paypal(cls, obj: dict | None) -> Money | None:
         if not obj:
             return None
         cur = obj.get("currency_code") or obj.get("currency")
@@ -54,15 +54,15 @@ class Money:
     def to_paypal(self) -> dict:
         return {"currency_code": self.currency, "value": to_decimal_str(self.minor, self.currency)}
 
-    def __add__(self, other: "Money") -> "Money":
+    def __add__(self, other: Money) -> Money:
         self._same(other)
         return Money(self.minor + other.minor, self.currency)
 
-    def __sub__(self, other: "Money") -> "Money":
+    def __sub__(self, other: Money) -> Money:
         self._same(other)
         return Money(self.minor - other.minor, self.currency)
 
-    def _same(self, other: "Money") -> None:
+    def _same(self, other: Money) -> None:
         if other.currency != self.currency:
             raise ValueError(f"currency mismatch {self.currency} vs {other.currency}")
 

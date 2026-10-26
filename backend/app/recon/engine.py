@@ -2,12 +2,22 @@
 rule no longer fires. Can run over the whole ledger or a single order chain."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.domain.models import Authorization, Break, Capture, Dispute, Invoice, Order, PayoutItem, Refund, Transaction
+from app.domain.models import (
+    Authorization,
+    Break,
+    Capture,
+    Dispute,
+    Invoice,
+    Order,
+    PayoutItem,
+    Refund,
+    Transaction,
+)
 from app.logging import get_logger
 from app.recon.rules import RULES, Finding, Scope
 
@@ -22,7 +32,7 @@ def load_scope(session: Session, correlation_id: str | None = None, resource: tu
 
     if correlation_id is None:
         return Scope(
-            now=datetime.now(tz=timezone.utc),
+            now=datetime.now(tz=UTC),
             orders=_all(Order),
             captures=_all(Capture),
             refunds=_all(Refund),
@@ -51,7 +61,7 @@ def load_scope(session: Session, correlation_id: str | None = None, resource: tu
     }
     txs = {r.id: r for r in session.execute(select(Transaction).where(Transaction.id.in_(cap_ids or [""]))).scalars()}
     scope = Scope(
-        now=datetime.now(tz=timezone.utc),
+        now=datetime.now(tz=UTC),
         orders=orders,
         captures=captures,
         refunds=refunds,
@@ -108,7 +118,7 @@ def persist(session: Session, findings: list[Finding], scoped_resources: set[tup
 
     Returns the breaks that are *new* this pass (so callers can dispatch agents once).
     """
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     seen = {f.fingerprint for f in findings}
     new: list[Break] = []
     for f in findings:

@@ -2,7 +2,7 @@
 key, so a retried job cannot refund twice or submit evidence twice."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -87,7 +87,7 @@ def _refund(session: Session, paypal: PayPalClient | None, ap: Approval, p: dict
         event_type=EventType.REFUND_COMPLETED if body.get("status") == "COMPLETED" else EventType.REFUND_FAILED,
         resource_type=ResourceType.REFUND,
         resource_id=body.get("id", ap.idempotency_key),
-        occurred_at=datetime.now(tz=timezone.utc),
+        occurred_at=datetime.now(tz=UTC),
         payload={**body, "supplementary_data": {"related_ids": {"capture_id": cap.id, "order_id": cap.order_id}}},
         amount=Money.from_paypal(body.get("amount")) or amount,
         correlation_id=cap.order_id,
@@ -120,7 +120,7 @@ def _provide_evidence(session: Session, paypal: PayPalClient | None, ap: Approva
         event_type=EventType.DISPUTE_UPDATED,
         resource_type=ResourceType.DISPUTE,
         resource_id=dispute_id,
-        occurred_at=datetime.now(tz=timezone.utc),
+        occurred_at=datetime.now(tz=UTC),
         payload=full,
         amount=Money.from_paypal(full.get("dispute_amount")),
         correlation_id=p.get("order_id"),
@@ -148,7 +148,7 @@ def _ledger_correction(session: Session, ap: Approval, p: dict) -> dict:
         event_type=EventType.LEDGER_CORRECTION,
         resource_type=ResourceType.CAPTURE if cap_id else ResourceType.ORDER,
         resource_id=cap_id or (p.get("order_id") or ""),
-        occurred_at=datetime.now(tz=timezone.utc),
+        occurred_at=datetime.now(tz=UTC),
         payload=payload,
         amount=Money.from_paypal(payload.get("amount")),
         correlation_id=p.get("order_id"),
@@ -175,7 +175,7 @@ def _dry_run(session: Session, ap: Approval, p: dict) -> dict:
             event_type=EventType.REFUND_COMPLETED,
             resource_type=ResourceType.REFUND,
             resource_id=f"DRYRUN-REF-{ap.id}",
-            occurred_at=datetime.now(tz=timezone.utc),
+            occurred_at=datetime.now(tz=UTC),
             payload={"id": f"DRYRUN-REF-{ap.id}", "status": "COMPLETED", "amount": amount.to_paypal(), "supplementary_data": {"related_ids": {"capture_id": cap.id, "order_id": cap.order_id}}},
             amount=amount,
             correlation_id=cap.order_id,
@@ -191,7 +191,7 @@ def _dry_run(session: Session, ap: Approval, p: dict) -> dict:
             event_type=EventType.DISPUTE_UPDATED,
             resource_type=ResourceType.DISPUTE,
             resource_id=p.get("dispute_id") or "",
-            occurred_at=datetime.now(tz=timezone.utc),
+            occurred_at=datetime.now(tz=UTC),
             payload={"dispute_id": p.get("dispute_id"), "status": "UNDER_REVIEW", "evidences": evidences},
             correlation_id=p.get("order_id"),
         )
@@ -213,7 +213,7 @@ def _resolve_break(session: Session, break_id: int, ap: Approval, result: dict) 
         b.resolution = {"kind": "escalated", "approval_id": ap.id, "summary": result.get("summary")}
         return
     b.status = "resolved"
-    b.resolved_at = datetime.now(tz=timezone.utc)
+    b.resolved_at = datetime.now(tz=UTC)
     b.resolution = {"kind": ap.action, "approval_id": ap.id, "by": ap.decided_by or "policy:auto", **{k: v for k, v in result.items() if k != "paypal"}}
 
 

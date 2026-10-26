@@ -6,7 +6,7 @@ while it is queued or running.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -18,7 +18,7 @@ from app.domain.models import Job
 
 def enqueue(session: Session, kind: str, dedupe_key: str, payload: dict | None = None, delay_seconds: int = 0) -> int | None:
     """Returns job id, or None if an identical queued/running job already exists."""
-    run_after = datetime.now(tz=timezone.utc) + timedelta(seconds=delay_seconds)
+    run_after = datetime.now(tz=UTC) + timedelta(seconds=delay_seconds)
     stmt = (
         pg_insert(Job)
         .values(kind=kind, dedupe_key=dedupe_key, payload=payload or {}, run_after=run_after)
@@ -55,7 +55,7 @@ def claim(session: Session, batch: int) -> list[Job]:
 
 
 def complete(session: Session, job_id: int) -> None:
-    session.execute(update(Job).where(Job.id == job_id).values(status="done", finished_at=datetime.now(tz=timezone.utc)))
+    session.execute(update(Job).where(Job.id == job_id).values(status="done", finished_at=datetime.now(tz=UTC)))
 
 
 def fail(session: Session, job: Job, error: str) -> None:
@@ -64,7 +64,7 @@ def fail(session: Session, job: Job, error: str) -> None:
         status, run_after = "dead", job.run_after
     else:
         status = "queued"
-        run_after = datetime.now(tz=timezone.utc) + timedelta(seconds=min(2 ** job.attempts * 5, 900))
+        run_after = datetime.now(tz=UTC) + timedelta(seconds=min(2 ** job.attempts * 5, 900))
     session.execute(
         update(Job).where(Job.id == job.id).values(status=status, run_after=run_after, last_error=error[:4000])
     )

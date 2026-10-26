@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Any
 
@@ -50,7 +50,7 @@ def record_approval(session: Session, agent_run_id: int, break_id: int, proposal
         policy_reasons=decision.reasons,
         status="approved" if decision.decision == "auto" else ("declined" if decision.decision == "forbidden" else "pending"),
         decided_by="policy:auto" if decision.decision == "auto" else None,
-        decided_at=datetime.now(tz=timezone.utc) if decision.decision == "auto" else None,
+        decided_at=datetime.now(tz=UTC) if decision.decision == "auto" else None,
         idempotency_key=key,
     )
     session.add(ap)
@@ -73,7 +73,7 @@ def close_run(session: Session, agent_run_id: int, state: dict, outcome: dict) -
     run.outcome = as_jsonable(outcome)
     run.specialist = (state.get("triage") or {}).get("specialist")
     run.status = {"executed": "executed", "declined": "declined", "failed": "failed"}.get(outcome.get("status", ""), "closed")
-    run.finished_at = datetime.now(tz=timezone.utc)
+    run.finished_at = datetime.now(tz=UTC)
     b = session.get(Break, state["break_id"])
     if b is not None and run.status == "declined":
         b.status = "open"
@@ -108,8 +108,8 @@ def start_run(session: Session, break_id: int, paypal: PayPalClient | None) -> A
     config = {"configurable": {"thread_id": run.thread_id}}
     try:
         final = graph.invoke({"break_id": break_id, "trace": []}, config=config)
-    except Exception as exc:  # noqa: BLE001
-        run.status, run.error, run.finished_at = "failed", str(exc), datetime.now(tz=timezone.utc)
+    except Exception as exc:
+        run.status, run.error, run.finished_at = "failed", str(exc), datetime.now(tz=UTC)
         b.status = "open"
         log.error("agent.run_failed", run=run.id, error=str(exc))
         raise
@@ -128,7 +128,7 @@ def resume_run(session: Session, approval_id: int, approved: bool, by: str, note
     if run is None:
         raise RuntimeError("agent run not found")
     ap.status = "approved" if approved else "declined"
-    ap.decided_by, ap.decided_at, ap.decision_note = by, datetime.now(tz=timezone.utc), note
+    ap.decided_by, ap.decided_at, ap.decision_note = by, datetime.now(tz=UTC), note
     session.flush()
 
     deps = GraphDeps(session, paypal, run.id)
@@ -152,7 +152,7 @@ def _sync_trace(session: Session, run: AgentRun, graph, config, final: dict | No
     elif values.get("outcome"):
         run.outcome = as_jsonable(values["outcome"])
         run.status = {"executed": "executed", "declined": "declined", "failed": "failed"}.get(values["outcome"].get("status", ""), "closed")
-        run.finished_at = run.finished_at or datetime.now(tz=timezone.utc)
+        run.finished_at = run.finished_at or datetime.now(tz=UTC)
     if snapshot.tasks:
         for t in snapshot.tasks:
             if t.interrupts:

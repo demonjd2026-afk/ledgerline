@@ -61,7 +61,8 @@ async def receive_paypal_webhook(
 
     verified = _verify(paypal, settings, headers, body)
     row = db.get(WebhookInbox, inbox_id)
-    assert row is not None
+    if row is None:  # pragma: no cover - same transaction, cannot happen
+        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     if not verified:
         row.status = "rejected"
         row.error = "signature verification failed"
@@ -76,8 +77,11 @@ async def receive_paypal_webhook(
 
 
 def _verify(paypal: PayPalClient, settings: Settings, headers: dict, body: dict) -> bool:
-    if settings.app_env == "test" or not settings.paypal_webhook_id:
-        # Local/dev without a registered webhook id: accept, but say so loudly.
+    if not settings.paypal_webhook_id:
+        if settings.app_env == "prod":
+            log.error("webhook.rejected", reason="PAYPAL_WEBHOOK_ID not set in prod; refusing unverified webhooks")
+            return False
+        # Local/dev/test without a registered webhook id: accept, but say so loudly.
         log.warning("webhook.unverified", reason="PAYPAL_WEBHOOK_ID not set")
         return True
     try:

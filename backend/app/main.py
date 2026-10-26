@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -42,10 +43,15 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def _observe(request: Request, call_next):
-        rid = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
+        rid = uuid.uuid4().hex[:12]  # never trust a client-supplied id into logs
         structlog.contextvars.bind_contextvars(request_id=rid)
         t0 = time.perf_counter()
         try:
+            if s.operator_token and request.url.path.startswith("/api/"):
+                supplied = request.headers.get("x-operator-token", "")
+                if not hmac.compare_digest(supplied, s.operator_token):
+                    response = Response(status_code=401, content='{"detail":"operator token required"}', media_type="application/json")
+                    return response
             response: Response = await call_next(request)
         finally:
             structlog.contextvars.unbind_contextvars("request_id")
@@ -53,6 +59,9 @@ def create_app() -> FastAPI:
         REQS.labels(request.method, path, response.status_code).inc()
         LAT.labels(path).observe(time.perf_counter() - t0)
         response.headers["x-request-id"] = rid
+        response.headers["x-content-type-options"] = "nosniff"
+        response.headers["x-frame-options"] = "DENY"
+        response.headers["referrer-policy"] = "no-referrer"
         return response
 
     app.include_router(webhook_router)

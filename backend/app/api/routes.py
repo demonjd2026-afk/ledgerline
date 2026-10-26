@@ -1,7 +1,7 @@
 """Dashboard + operator API. Read endpoints are plain queries; approval endpoints resume graphs."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -79,7 +79,7 @@ def overview(db: Session = Depends(get_db)) -> dict:
         "webhooks_received": count(WebhookInbox),
         "webhooks_rejected": count(WebhookInbox, WebhookInbox.status == "rejected"),
         "jobs": queue.stats(db),
-        "last_event_at": (store.latest_recorded_at(db) or datetime.now(tz=timezone.utc)).isoformat(),
+        "last_event_at": (store.latest_recorded_at(db) or datetime.now(tz=UTC)).isoformat(),
         "paypal_configured": get_settings().paypal_configured,
         "llm_model": get_settings().llm_model,
     }
@@ -173,7 +173,7 @@ def dismiss_break(break_id: int, body: Dismiss, db: Session = Depends(get_db)) -
     b = db.get(Break, break_id)
     if b is None:
         raise HTTPException(404)
-    b.status, b.resolved_at = "resolved", datetime.now(tz=timezone.utc)
+    b.status, b.resolved_at = "resolved", datetime.now(tz=UTC)
     b.resolution = {"kind": "dismissed", "by": body.by, "note": body.note}
     return _row(b)
 

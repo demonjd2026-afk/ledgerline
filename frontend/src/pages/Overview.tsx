@@ -33,34 +33,36 @@ export default function Overview() {
         </button>
       </div>
 
-      <div className="posture">
-        <div>
+      <div className="kpis">
+        <Link to="/breaks" className="kpi">
           <div className={"n " + (critical ? "red" : "green")}>{critical}</div>
-          <div className="l">critical breaks open</div>
+          <div className="l">Critical breaks</div>
+          <div className="s">{openBySev.warn ?? 0} warning{(openBySev.warn ?? 0) === 1 ? "" : "s"} · {openBySev.info ?? 0} note{(openBySev.info ?? 0) === 1 ? "" : "s"}</div>
+        </Link>
+        <div className="kpi">
+          <div className={"n " + (exposure.length ? "red" : "")}>{exposure.length ? exposure.map(([, v]) => v).join(" / ") : "0.00"}</div>
+          <div className="l">Money in question{exposure.length ? ` (${exposure.map(([c]) => c).join("/")})` : ""}</div>
+          <div className="s">sum of open deltas</div>
         </div>
-        <div>
-          <div className="n">{(openBySev.warn ?? 0) + (openBySev.info ?? 0)}</div>
-          <div className="l">warnings and notes</div>
-        </div>
-        <div>
-          <div className={"n " + (exposure.length ? "red" : "")}>{exposure.length ? exposure.map(([c, v]) => `${v} ${c}`).join(" / ") : "0.00"}</div>
-          <div className="l">money in question</div>
-        </div>
-        <div>
-          <div className={"n " + (o?.approvals_pending ? "red" : "")}>{o?.approvals_pending ?? 0}</div>
-          <div className="l">
-            <Link to="/approvals">decisions waiting on you</Link>
-          </div>
-        </div>
-        <div>
+        <Link to="/approvals" className="kpi">
+          <div className={"n " + (o?.approvals_pending ? "amber" : "")}>{o?.approvals_pending ?? 0}</div>
+          <div className="l">Waiting on you</div>
+          <div className="s">agent proposals to approve</div>
+        </Link>
+        <div className="kpi">
           <div className="n green">{o?.breaks_resolved ?? 0}</div>
-          <div className="l">resolved so far</div>
+          <div className="l">Resolved</div>
+          <div className="s">{o?.agent_runs ?? 0} agent runs</div>
         </div>
-        <div>
+        <Link to="/ledger" className="kpi">
           <div className="n">{o?.events ?? 0}</div>
-          <div className="l">
-            ledger events · {o?.orders ?? 0} orders · {o?.disputes_open ?? 0} open disputes
-          </div>
+          <div className="l">Ledger events</div>
+          <div className="s">{o?.orders ?? 0} orders · {o?.captures ?? 0} captures · {o?.refunds ?? 0} refunds</div>
+        </Link>
+        <div className="kpi">
+          <div className={"n " + (o?.disputes_open ? "amber" : "")}>{o?.disputes_open ?? 0}</div>
+          <div className="l">Open disputes</div>
+          <div className="s">{o?.payout_items ?? 0} payout items · {o?.invoices ?? 0} invoices</div>
         </div>
       </div>
 

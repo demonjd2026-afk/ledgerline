@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     payout_fee_band_bps: int = 300  # ±3% of expected fee
 
     # Web
+    operator_token: str = ""  # when set, every /api request must carry X-Operator-Token; always set this in prod
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
     serve_frontend: bool = True
     frontend_dist: Path = BACKEND_DIR.parent / "frontend" / "dist"
@@ -65,7 +66,7 @@ class Settings(BaseSettings):
         return bool(self.paypal_client_id and self.paypal_client_secret)
 
     @model_validator(mode="after")
-    def _guard_live(self) -> "Settings":
+    def _guard_live(self) -> Settings:
         if self.paypal_env == "live" and not self.allow_live:
             raise ValueError("PAYPAL_ENV=live requires ALLOW_LIVE=true. Refusing to start.")
         return self

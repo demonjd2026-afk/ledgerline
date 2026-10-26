@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -51,7 +51,7 @@ def evaluate(session: Session, action: str, proposal: dict[str, Any], rule: str)
         if order is None:
             reasons.append("order not in ledger")
         else:
-            age = (datetime.now(tz=timezone.utc) - order.created_at).days
+            age = (datetime.now(tz=UTC) - order.created_at).days
             if age > int(cfg.get("max_order_age_days", 0)):
                 reasons.append(f"order is {age}d old")
             if order.payer_email and order.payer_email in (pol.get("payer_blocklist") or []):

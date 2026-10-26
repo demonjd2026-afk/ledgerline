@@ -45,7 +45,8 @@ def append(session: Session, ev: LedgerEvent) -> tuple[LedgerEventRow | None, bo
         ).scalar_one()
         return existing, False
     row = session.get(LedgerEventRow, new_id)
-    assert row is not None
+    if row is None:  # pragma: no cover - just inserted in this transaction
+        raise RuntimeError("ledger row vanished after insert")
     apply_event(session, row)
     log.info("ledger.append", type=row.event_type, resource=row.resource_id, corr=row.correlation_id)
     return row, True

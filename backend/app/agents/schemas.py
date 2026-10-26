@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 class Triage(BaseModel):
     specialist: Literal["dispute_defender", "refund_advisor", "drift_explainer"]
-    summary: str = Field(description="One-paragraph plain-language statement of what is wrong and why it matters")
+    summary: str = Field(max_length=240, description="One sentence, plain language: what is wrong and why it matters")
     missing_evidence: list[str] = Field(default_factory=list, description="Facts you still need before proposing an action")
     confidence: float = Field(ge=0, le=1)
 
@@ -48,7 +48,8 @@ class EvidenceItem(BaseModel):
 
 class Proposal(BaseModel):
     action: Literal["refund", "provide_evidence", "ledger_correction", "no_action", "escalate"]
-    rationale: str = Field(description="Why this action, citing ledger and PayPal facts")
+    headline: str = Field(max_length=140, description="One sentence an operator reads first: the finding and the action, with the key id and amount")
+    rationale: str = Field(max_length=600, description="Two to four sentences of supporting facts from the tools, ids and amounts exact. No restating the headline.")
     confidence: float = Field(ge=0, le=1)
     # refund
     capture_id: str | None = None

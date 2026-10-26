@@ -20,7 +20,7 @@ class StubChatModel(BaseChatModel):
     def _llm_type(self) -> str:
         return "stub"
 
-    def bind_tools(self, tools, **kwargs):  # noqa: D401 - no tool use in stub
+    def bind_tools(self, tools, **kwargs):
         return self
 
     def with_structured_output(self, schema, **kwargs):
@@ -85,6 +85,7 @@ def _stub_proposal(brk: dict):
         caps = obs.get("captures") or []
         return Proposal(
             action="refund",
+            headline=f"Refund the {delta/100:.2f} {cur} over-charge on order {corr or rid}.",
             rationale=f"Ledger shows {obs.get('captured_total') or obs.get('final_captures')} captured against order amount {exp.get('order_amount','?')}. Customer was over-charged by the delta; refund exactly that amount from the last capture.",
             confidence=0.7,
             capture_id=caps[-1] if caps else None,
@@ -96,6 +97,7 @@ def _stub_proposal(brk: dict):
     if rule == "DISPUTE_RESPONSE_DUE":
         return Proposal(
             action="provide_evidence",
+            headline=f"Submit fulfilment evidence on dispute {rid} before {obs.get('due') or 'the deadline'}.",
             rationale=f"Dispute {rid} ({obs.get('reason')}) is {obs.get('status')} and due {obs.get('due')}. Submitting fulfilment evidence from the order chain before the deadline.",
             confidence=0.55,
             dispute_id=rid,
@@ -109,6 +111,7 @@ def _stub_proposal(brk: dict):
     if rule in ("WEBHOOK_API_DRIFT",):
         return Proposal(
             action="ledger_correction",
+            headline=f"Set capture {rid} to {exp.get('status')} to match PayPal.",
             rationale=f"PayPal's API reports {exp.get('status')}/{exp.get('amount')} while the ledger holds {obs.get('status')}/{obs.get('amount')}. PayPal is authoritative for capture state; correct the ledger projection.",
             confidence=0.8,
             capture_id=rid,
@@ -118,6 +121,7 @@ def _stub_proposal(brk: dict):
     if rule == "REFUND_EXCEEDS_CAPTURE":
         return Proposal(
             action="escalate",
+            headline=f"Refunds on capture {rid} exceed what was captured; a person must confirm with PayPal.",
             rationale=f"Refunds {obs.get('refunded_total')} exceed capture {exp.get('max_refundable')}. Likely a duplicate refund record; needs a human to confirm with PayPal before any correction.",
             confidence=0.6,
             capture_id=rid,
@@ -126,6 +130,7 @@ def _stub_proposal(brk: dict):
         )
     return Proposal(
         action="no_action",
+        headline=f"No money movement is warranted for this {rule.lower().replace('_', ' ')}.",
         rationale=f"{rule}: informational; no money movement warranted. {brk.get('title','')}",
         confidence=0.5,
         order_id=corr,

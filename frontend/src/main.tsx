@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
@@ -42,10 +42,24 @@ function Rail() {
   );
 }
 
+function useTheme() {
+  const [theme, setTheme] = useState<string>(() => {
+    try { return localStorage.getItem("ledgerline.theme") ?? "auto"; } catch { return "auto"; }
+  });
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", theme);
+    try { localStorage.setItem("ledgerline.theme", theme); } catch {}
+  }, [theme]);
+  return [theme, setTheme] as const;
+}
+
 function Topbar() {
   const { pathname } = useLocation();
   const { data } = useQuery({ queryKey: ["overview"], queryFn: api.overview });
+  const [theme, setTheme] = useTheme();
   const seg = pathname.split("/")[1] ?? "";
+  const next = theme === "light" ? "dark" : theme === "dark" ? "auto" : "light";
   return (
     <div className="topbar">
       <div className="crumbs">
@@ -55,6 +69,9 @@ function Topbar() {
         <span>{data?.events ?? 0} events · {data?.orders ?? 0} orders · {data?.disputes_open ?? 0} open disputes</span>
         <span>Last event {ago(data?.last_event_at)}</span>
         <span>Sandbox</span>
+        <button className="theme" onClick={() => setTheme(next)} title="Switch theme">
+          {theme === "light" ? "Light" : theme === "dark" ? "Dark" : "Auto"}
+        </button>
       </div>
     </div>
   );

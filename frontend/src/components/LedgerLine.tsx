@@ -18,7 +18,7 @@ function kv(obj: Record<string, unknown>, max = 2) {
     .slice(0, max);
   return entries.map(([k, v]) => (
     <div key={k}>
-      {k.replace(/_/g, " ")} <b>{String(v)}</b>
+      {k.replace(/_/g, " ")} <b>{/^[A-Z][A-Z0-9_]+$/.test(String(v)) ? String(v).toLowerCase().replace(/_/g, " ") : String(v)}</b>
     </div>
   ));
 }

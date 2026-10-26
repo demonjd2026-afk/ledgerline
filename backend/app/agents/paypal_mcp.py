@@ -44,7 +44,7 @@ def load_paypal_mcp_tools(paypal: PayPalClient) -> list[StructuredTool]:
 async def _load(paypal: PayPalClient) -> list[StructuredTool]:
     from langchain_mcp_adapters.client import MultiServerMCPClient
 
-    token = paypal._get_token()  # noqa: SLF001 - the MCP server needs a bearer, not credentials
+    token = paypal._get_token()
     env = dict(os.environ)
     env.update({"PAYPAL_ACCESS_TOKEN": token, "PAYPAL_ENVIRONMENT": "SANDBOX" if get_settings().paypal_env == "sandbox" else "PRODUCTION"})
     client = MultiServerMCPClient(

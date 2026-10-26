@@ -1,13 +1,20 @@
 """The processing pipeline every job runs: normalise -> append -> enrich -> reconcile -> dispatch."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.domain.events import EventType, LedgerEvent, ResourceType, correlation_from_resource, normalise_webhook, parse_ts
+from app.domain.events import (
+    EventType,
+    LedgerEvent,
+    ResourceType,
+    correlation_from_resource,
+    normalise_webhook,
+    parse_ts,
+)
 from app.domain.models import Capture, Dispute, Order, WebhookInbox
 from app.domain.money import Money
 from app.ledger import store
@@ -126,4 +133,4 @@ def _order_status_event(status: str | None) -> EventType:
 
 
 def now_utc() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)

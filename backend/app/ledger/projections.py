@@ -5,7 +5,7 @@ in order always yields the same tables, which is what makes ``rebuild`` safe.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import delete
@@ -48,7 +48,7 @@ def _upsert(session: Session, model, pk: str, defaults: dict[str, Any], updates:
         session.add(row)
         return row
     # Ignore out-of-order older events for status, but never lose a newer event id.
-    if ev.occurred_at >= (row.updated_at or datetime.min.replace(tzinfo=timezone.utc)):
+    if ev.occurred_at >= (row.updated_at or datetime.min.replace(tzinfo=UTC)):
         for k, v in updates.items():
             if v is not None:
                 setattr(row, k, v)

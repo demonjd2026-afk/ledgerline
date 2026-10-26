@@ -18,15 +18,16 @@ export default function Approvals() {
     onSuccess: () => qc.invalidateQueries(),
   });
 
-  // Land on the first item so the page is never empty on the right.
-  useEffect(() => {
-    if (!id && list.data?.length) nav(`/approvals/${list.data[0].id}`, { replace: true });
-  }, [id, list.data, nav]);
-
   const SEV: Record<string, number> = { critical: 0, warn: 1, info: 2 };
   const rows = [...(list.data ?? [])].sort(
     (x, y) => (SEV[x.break?.severity ?? "info"] - SEV[y.break?.severity ?? "info"]) || Math.abs(y.break?.delta_minor ?? 0) - Math.abs(x.break?.delta_minor ?? 0)
   );
+  const firstId = rows[0]?.id;
+
+  // Land on the most important item so the page is never empty on the right.
+  useEffect(() => {
+    if (!id && firstId) nav(`/approvals/${firstId}`, { replace: true });
+  }, [id, firstId, nav]);
   return (
     <>
       <div className="row spread" style={{ marginBottom: 14 }}>

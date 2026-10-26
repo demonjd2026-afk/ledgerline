@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import random
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -82,7 +82,7 @@ def record_order_as_webhook(session: Session, order: dict) -> None:
 
 
 def seed(session: Session, pp: PayPalClient, n_orders: int = 6, seed_value: int = 7) -> dict:
-    rnd = random.Random(seed_value)
+    rnd = random.Random(seed_value)  # noqa: S311 - deterministic demo data, not security
     created: list[dict] = []
     for i in range(n_orders):
         name, amount = SKUS[i % len(SKUS)]
@@ -141,7 +141,7 @@ def seed(session: Session, pp: PayPalClient, n_orders: int = 6, seed_value: int 
                     event_type=EventType.INVOICE_SENT,
                     resource_type=ResourceType.INVOICE,
                     resource_id=inv_id,
-                    occurred_at=datetime.now(tz=timezone.utc),
+                    occurred_at=datetime.now(tz=UTC),
                     payload=full,
                     amount=Money.from_paypal(full.get("amount")),
                 ),
@@ -181,7 +181,7 @@ def inject(session: Session, pp: PayPalClient, order_ids: list[str]) -> dict:
     o3 = order_ids[2]
     cap3 = _capture_id(session, o3)
     ghost = {"id": cap3 + "-REPLAY", "status": "COMPLETED", "final_capture": True, "amount": _capture_amount(session, cap3),
-             "supplementary_data": {"related_ids": {"order_id": o3}}, "create_time": datetime.now(tz=timezone.utc).isoformat()}
+             "supplementary_data": {"related_ids": {"order_id": o3}}, "create_time": datetime.now(tz=UTC).isoformat()}
     ingest_event(
         session,
         LedgerEvent(
@@ -190,7 +190,7 @@ def inject(session: Session, pp: PayPalClient, order_ids: list[str]) -> dict:
             event_type=EventType.CAPTURE_COMPLETED,
             resource_type=ResourceType.CAPTURE,
             resource_id=ghost["id"],
-            occurred_at=datetime.now(tz=timezone.utc),
+            occurred_at=datetime.now(tz=UTC),
             payload=ghost,
             amount=Money.from_paypal(ghost["amount"]),
             correlation_id=o3,

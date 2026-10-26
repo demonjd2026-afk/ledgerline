@@ -5,12 +5,22 @@ fingerprint, so re-running never duplicates and a fixed break resolves automatic
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Callable
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from app.config import get_settings
-from app.domain.models import Authorization, Capture, Dispute, Invoice, Order, PayoutItem, Refund, Transaction
+from app.domain.models import (
+    Authorization,
+    Capture,
+    Dispute,
+    Invoice,
+    Order,
+    PayoutItem,
+    Refund,
+    Transaction,
+)
 from app.domain.money import to_decimal_str
 
 Severity = str  # info | warn | critical
@@ -447,4 +457,4 @@ def settlement_lag(s: Scope) -> list[Finding]:
 
 
 def utcnow() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)

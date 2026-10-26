@@ -73,8 +73,27 @@ export type Overview = {
   llm_model: string;
 };
 
+const TOKEN_KEY = "ledgerline.operator_token";
+function token(): string {
+  try { return sessionStorage.getItem(TOKEN_KEY) ?? ""; } catch { return ""; }
+}
+export function setToken(t: string) {
+  try { sessionStorage.setItem(TOKEN_KEY, t); } catch {}
+}
+
 async function j<T>(input: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(input, { headers: { "content-type": "application/json" }, ...init });
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  const t = token();
+  if (t) headers["x-operator-token"] = t;
+  const r = await fetch(input, { ...init, headers: { ...headers, ...(init?.headers as Record<string, string> | undefined) } });
+  if (r.status === 401) {
+    const entered = window.prompt("This console is protected. Enter the operator token.");
+    if (entered) {
+      setToken(entered.trim());
+      return j<T>(input, init);
+    }
+    throw new Error("operator token required");
+  }
   if (!r.ok) {
     let msg = `${r.status}`;
     try {

@@ -1,0 +1,38 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: ledgerline, POSTGRES_PASSWORD: ledgerline, POSTGRES_DB: ledgerline }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U ledgerline" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: pip install -e "backend[dev]" pip-audit bandit
+      - run: cd backend && npm ci
+      - run: cd backend && python -m pytest -q
+        env:
+          DATABASE_URL: postgresql+psycopg://ledgerline:ledgerline@localhost:5432/ledgerline
+          APP_ENV: test
+      - run: cd backend && ruff check app
+      - run: cd backend && bandit -q -r app -ll
+      - run: cd backend && pip-audit
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: cd frontend && npm ci && npm run build
+      - run: cd frontend && npm audit --omit=dev --audit-level=high

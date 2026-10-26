@@ -7,7 +7,7 @@ one-line change here, not a rules rewrite.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -105,7 +105,7 @@ class LedgerEvent:
 
 def parse_ts(value: str | None) -> datetime:
     if not value:
-        return datetime.now(tz=timezone.utc)
+        return datetime.now(tz=UTC)
     # PayPal uses RFC3339 with Z.
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
@@ -155,7 +155,7 @@ def normalise_webhook(envelope: dict[str, Any]) -> LedgerEvent | None:
     if resource_type == ResourceType.PAYOUT_ITEM:
         amount = Money.from_paypal((resource.get("payout_item") or {}).get("amount"))
     if resource_type == ResourceType.INVOICE:
-        amount = Money.from_paypal((resource.get("amount") or {}))
+        amount = Money.from_paypal(resource.get("amount") or {})
 
     return LedgerEvent(
         event_key=LedgerEvent.key("webhook", envelope.get("id") or f"{resource_id}", event_type),

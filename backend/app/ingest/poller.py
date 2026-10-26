@@ -6,11 +6,17 @@ with ``source=poll``; anything that disagrees becomes a break in the reconciler.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from app.domain.events import EventType, LedgerEvent, ResourceType, correlation_from_resource, parse_ts
+from app.domain.events import (
+    EventType,
+    LedgerEvent,
+    ResourceType,
+    correlation_from_resource,
+    parse_ts,
+)
 from app.domain.money import Money
 from app.ingest.pipeline import ingest_event
 from app.logging import get_logger
@@ -20,7 +26,7 @@ log = get_logger("poller")
 
 
 def poll_transactions(session: Session, paypal: PayPalClient, lookback_hours: int = 72) -> int:
-    end = datetime.now(tz=timezone.utc)
+    end = datetime.now(tz=UTC)
     start = end - timedelta(hours=lookback_hours)
     fmt = "%Y-%m-%dT%H:%M:%S-0000"
     page, n = 1, 0
@@ -85,7 +91,7 @@ def poll_disputes(session: Session, paypal: PayPalClient) -> int:
             )
             ingest_event(session, ev, paypal)
             n += 1
-        token = next((l.get("href") for l in res.get("links", []) if l.get("rel") == "next"), None)
+        token = next((link.get("href") for link in res.get("links", []) if link.get("rel") == "next"), None)
         if not token:
             break
         token = token.split("next_page_token=")[-1] if "next_page_token=" in token else None
