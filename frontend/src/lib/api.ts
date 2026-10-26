@@ -94,6 +94,7 @@ export const api = {
   dismiss: (id: number, note: string) => j<Break>(`/api/breaks/${id}/dismiss`, { method: "POST", body: JSON.stringify({ note, by: "operator" }) }),
   reconcile: () => j<{ new_breaks: number }>("/api/reconcile", { method: "POST" }),
   approvals: (status = "pending") => j<Approval[]>(`/api/approvals?status=${status}`),
+  sheet: (id: number) => j<any>(`/api/approvals/${id}/sheet`),
   decide: (id: number, approved: boolean, note: string) =>
     j<{ run: AgentRun; approval: Approval }>(`/api/approvals/${id}/decide`, { method: "POST", body: JSON.stringify({ approved, note, by: "operator" }) }),
   runs: () => j<AgentRun[]>("/api/runs"),

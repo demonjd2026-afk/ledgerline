@@ -5,7 +5,6 @@ import { AgGridReact } from "ag-grid-react";
 import type { ColDef } from "ag-grid-community";
 import { AgentRun, api, ACTION_LABEL, RULE_LABEL, ago } from "../lib/api";
 import { Trace } from "../components/Trace";
-import { ProposalBody } from "../components/ProposalCard";
 
 export default function Runs() {
   const { id } = useParams();
@@ -53,7 +52,11 @@ export default function Runs() {
                 <p className="policy">
                   {one.data.break?.title} · <Link to={`/breaks/${one.data.run.break_id}`}>open break</Link>
                 </p>
-                {one.data.run.proposal && <ProposalBody proposal={one.data.run.proposal} />}
+                {one.data.run.proposal && (
+                  <p>
+                    <b>{ACTION_LABEL[one.data.run.proposal.action] ?? one.data.run.proposal.action}</b> — {one.data.run.proposal.rationale}
+                  </p>
+                )}
               </div>
               <div className="sheet">
                 <h2>Trace</h2>

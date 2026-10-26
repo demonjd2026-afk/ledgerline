@@ -217,6 +217,18 @@ def list_approvals(db: Session = Depends(get_db), status: str = "pending") -> li
     return out
 
 
+@router.get("/approvals/{approval_id}/sheet")
+def approval_sheet(approval_id: int, db: Session = Depends(get_db)) -> dict:
+    """Everything an operator needs to decide, in one payload."""
+    a = db.get(Approval, approval_id)
+    if a is None:
+        raise HTTPException(404)
+    b = db.get(Break, a.break_id)
+    run = db.get(AgentRun, a.agent_run_id)
+    chain = order_chain(b.correlation_id, db) if b and b.correlation_id and db.get(Order, b.correlation_id) else None
+    return {"approval": _row(a), "break": _row(b) if b else None, "run": _row(run) if run else None, "chain": chain}
+
+
 class Decision(BaseModel):
     approved: bool
     by: str = "operator"
