@@ -194,6 +194,11 @@ export function DecisionSheet({ s, busy, onDecide, error }: { s: Sheet; busy: bo
         <div>
           <div className="eyebrow">
             <span className={`pill ${b.severity === "critical" ? "red" : b.severity === "warn" ? "amber" : "grey"}`}>{b.severity}</span>
+            {b.status === "resolved" ? (
+              <span className="pill green">resolved{b.resolved_at ? ` · ${ago(b.resolved_at)}` : ""}</span>
+            ) : b.status === "awaiting_approval" ? (
+              <span className="pill amber">awaiting approval</span>
+            ) : null}
             <span className="muted">{human(b.resource_type)} <code>{b.resource_id}</code> · opened {ago(b.opened_at)} · <Link to={`/breaks/${b.id}`}>break #{b.id}</Link></span>
           </div>
           <h2>{RULE_LABEL[b.rule] ?? b.rule}</h2>
