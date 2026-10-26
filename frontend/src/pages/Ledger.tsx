@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
+import { gridTheme } from "../lib/gridTheme";
 import type { ColDef } from "ag-grid-community";
 import { api } from "../lib/api";
 
@@ -54,8 +55,9 @@ export default function Ledger() {
       {data.length === 0 ? (
         <div className="empty">No {tab} yet.</div>
       ) : (
-        <div className="ag-theme-ledger" style={{ height: "calc(100vh - 230px)", minHeight: 420 }}>
-          <AgGridReact rowData={data} columnDefs={cols} defaultColDef={{ sortable: true, resizable: true }} getRowId={(p) => String(p.data.id)} suppressCellFocus pagination paginationPageSize={100} />
+        <div className="grid" style={{ height: "calc(100vh - 230px)", minHeight: 420 }}>
+          <AgGridReact
+            theme={gridTheme} rowData={data} columnDefs={cols} defaultColDef={{ sortable: true, resizable: true }} getRowId={(p) => String(p.data.id)} suppressCellFocus pagination paginationPageSize={100} />
         </div>
       )}
     </>

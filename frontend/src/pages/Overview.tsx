@@ -35,49 +35,48 @@ export default function Overview() {
 
       <div className="kpis">
         <Link to="/breaks" className="kpi">
-          <div className={"n " + (critical ? "red" : "green")}>{critical}</div>
           <div className="l">Critical breaks</div>
+          <div className={"n " + (critical ? "red" : "green")}>{critical}</div>
           <div className="s">{openBySev.warn ?? 0} warning{(openBySev.warn ?? 0) === 1 ? "" : "s"} · {openBySev.info ?? 0} note{(openBySev.info ?? 0) === 1 ? "" : "s"}</div>
         </Link>
         <div className="kpi">
-          <div className={"n " + (exposure.length ? "red" : "")}>{exposure.length ? exposure.map(([, v]) => v).join(" / ") : "0.00"}</div>
           <div className="l">Money in question{exposure.length ? ` (${exposure.map(([c]) => c).join("/")})` : ""}</div>
+          <div className={"n " + (exposure.length ? "red" : "")}>{exposure.length ? exposure.map(([, v]) => v).join(" / ") : "0.00"}</div>
           <div className="s">sum of open deltas</div>
         </div>
         <Link to="/approvals" className="kpi">
-          <div className={"n " + (o?.approvals_pending ? "amber" : "")}>{o?.approvals_pending ?? 0}</div>
           <div className="l">Waiting on you</div>
+          <div className={"n " + (o?.approvals_pending ? "amber" : "")}>{o?.approvals_pending ?? 0}</div>
           <div className="s">agent proposals to approve</div>
         </Link>
         <div className="kpi">
-          <div className="n green">{o?.breaks_resolved ?? 0}</div>
           <div className="l">Resolved</div>
+          <div className="n green">{o?.breaks_resolved ?? 0}</div>
           <div className="s">{o?.agent_runs ?? 0} agent runs</div>
         </div>
         <Link to="/ledger" className="kpi">
-          <div className="n">{o?.events ?? 0}</div>
           <div className="l">Ledger events</div>
+          <div className="n">{o?.events ?? 0}</div>
           <div className="s">{o?.orders ?? 0} orders · {o?.captures ?? 0} captures · {o?.refunds ?? 0} refunds</div>
         </Link>
         <div className="kpi">
-          <div className={"n " + (o?.disputes_open ? "amber" : "")}>{o?.disputes_open ?? 0}</div>
           <div className="l">Open disputes</div>
+          <div className={"n " + (o?.disputes_open ? "amber" : "")}>{o?.disputes_open ?? 0}</div>
           <div className="s">{o?.payout_items ?? 0} payout items · {o?.invoices ?? 0} invoices</div>
         </div>
       </div>
 
-      <h2>Open breaks</h2>
-      {breaks.data?.length ? (
-        <div>
-          <LinesHead />
-          <div className="lines">{sortBySeverity(breaks.data).slice(0, 12).map((b) => <LedgerLine key={b.id} b={b} />)}</div>
-          {breaks.data.length > 12 && (
-            <p className="lede" style={{ marginTop: 10 }}>
-              <Link to="/breaks">All {breaks.data.length} open breaks</Link>
-            </p>
-          )}
-        </div>
-      ) : (
+      <div className="panel">
+        <header>
+          <span>Open breaks</span>
+          <span className="muted">{breaks.data?.length ? <Link to="/breaks">All {breaks.data.length} open</Link> : "none"}</span>
+        </header>
+        {breaks.data?.length ? (
+          <div className="lines-wrap" style={{ border: 0, borderRadius: 0, boxShadow: "none" }}>
+            <LinesHead />
+            <div className="lines">{sortBySeverity(breaks.data).slice(0, 12).map((b) => <LedgerLine key={b.id} b={b} />)}</div>
+          </div>
+        ) : (
         <div className="empty">
           Nothing is out of line. New breaks appear here the moment a webhook or poll disagrees with the ledger.
           {!o?.events && (
@@ -88,7 +87,8 @@ export default function Overview() {
             </>
           )}
         </div>
-      )}
+        )}
+      </div>
     </>
   );
 }

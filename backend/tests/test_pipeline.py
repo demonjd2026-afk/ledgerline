@@ -218,3 +218,30 @@ def test_demo_fixture_produces_expected_breaks(session):
     rules = {b.rule for b in session.execute(select(Break).where(Break.status != "resolved")).scalars()}
     assert {"ORDER_AMOUNT_MISMATCH", "DUPLICATE_CAPTURE", "WEBHOOK_API_DRIFT", "DISPUTE_RESPONSE_DUE", "REFUND_EXCEEDS_CAPTURE", "PAYOUT_ITEM_FAILED", "PAYOUT_FEE_VARIANCE", "INVOICE_PAID_NO_CAPTURE", "DUPLICATE_ORDER"} <= rules
     assert "CAPTURE_WITHOUT_ORDER" not in rules
+
+
+def test_dead_model_ends_in_escalation_not_crash(session, monkeypatch):
+    """Billing/provider failures must produce a reviewable escalation, never a failed run."""
+    from langchain_core.language_models.fake_chat_models import FakeListChatModel
+
+    import app.agents.graph as graph_mod
+
+    class Dead(FakeListChatModel):
+        def _generate(self, *a, **k):
+            raise RuntimeError("Error code: 400 - credit balance is too low")
+
+        def bind_tools(self, tools, **kwargs):
+            return self
+
+        def with_structured_output(self, schema, **kwargs):
+            return self
+
+    monkeypatch.setattr(graph_mod, "get_llm", lambda: Dead(responses=["x"]))
+    monkeypatch.setattr(graph_mod._structured.retry, "wait", lambda *a, **k: 0)
+    monkeypatch.setattr(graph_mod._invoke.retry, "wait", lambda *a, **k: 0)
+    _append_order(session, _order("O10", "100.00", [("C10", "200.00")]))
+    brk = [b for b in reconcile(session, "O10") if b.rule == "ORDER_AMOUNT_MISMATCH"][0]
+    run = start_run(session, brk.id, None)
+    assert run.status == "awaiting_approval"
+    assert run.proposal["action"] == "escalate"
+    assert "credit balance" in run.proposal["rationale"]

@@ -31,6 +31,7 @@ log = get_logger("agent.graph")
 
 class AgentState(TypedDict, total=False):
     usage: dict  # {"input_tokens": n, "output_tokens": n, "llm_calls": n}
+    llm_failed: str | None
     break_id: int
     break_json: dict
     triage: dict
@@ -132,7 +133,15 @@ def build_graph(deps: GraphDeps, checkpointer):
 
     def triage(state: AgentState) -> AgentState:
         msgs = [SystemMessage(prompts.SYSTEM), HumanMessage(prompts.TRIAGE.format(break_json=json.dumps(state["break_json"], default=str)))]
-        out, usage = _structured(deps.llm, Triage, msgs)
+        try:
+            out, usage = _structured(deps.llm, Triage, msgs)
+        except LLMCallFailed as exc:
+            # Provider down or account problem: route by rule so the run still ends in a reviewable proposal.
+            rule = state["break_json"].get("rule", "")
+            spec = "dispute_defender" if rule.startswith("DISPUTE") else "refund_advisor" if rule in ("DUPLICATE_ORDER", "DUPLICATE_CAPTURE", "REFUND_EXCEEDS_CAPTURE") else "drift_explainer"
+            out = Triage(specialist=spec, summary=f"Triage model unavailable: {str(exc)[:160]}", missing_evidence=["model_unavailable"], confidence=0.0)
+            usage = {"input_tokens": 0, "output_tokens": 0, "llm_calls": 0}
+            return {"triage": out.model_dump(), "usage": _add_usage(state, usage), "llm_failed": str(exc)[:300], "trace": state["trace"] + [{"node": "triage", "error": str(exc)[:300], **out.model_dump()}]}
         return {"triage": out.model_dump(), "usage": _add_usage(state, usage), "trace": state["trace"] + [{"node": "triage", **out.model_dump()}]}
 
     def specialist(state: AgentState) -> AgentState:
@@ -152,8 +161,13 @@ def build_graph(deps: GraphDeps, checkpointer):
         usage = dict(state.get("usage") or {})
         llm_tools = deps.llm.bind_tools(deps.tools)
         calls = 0
-        while calls < s.agent_max_tool_calls:
-            ai: AIMessage = _invoke(llm_tools, msgs)
+        failure: str | None = state.get("llm_failed")
+        while failure is None and calls < s.agent_max_tool_calls:
+            try:
+                ai: AIMessage = _invoke(llm_tools, msgs)
+            except LLMCallFailed as exc:
+                failure = str(exc)[:300]
+                break
             usage = _add_usage({"usage": usage}, _usage_of(ai))
             msgs.append(ai)
             tool_calls = getattr(ai, "tool_calls", None) or []
@@ -170,6 +184,8 @@ def build_graph(deps: GraphDeps, checkpointer):
                 trace.append({"node": spec, "tool": tc["name"], "args": tc["args"], "result_preview": str(result)[:600]})
                 msgs.append(ToolMessage(content=str(result), tool_call_id=tc["id"]))
         try:
+            if failure is not None:
+                raise LLMCallFailed(failure)
             proposal, pu = _structured(deps.llm, Proposal, msgs + [HumanMessage("Now produce the Proposal.")])
         except LLMCallFailed as exc:
             # The model could not produce a valid proposal after retries: never fail the break, escalate it.

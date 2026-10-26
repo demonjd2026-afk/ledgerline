@@ -78,7 +78,12 @@ function useTheme() {
   useEffect(() => {
     const root = document.documentElement;
     if (theme === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", theme);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => root.setAttribute("data-ag-theme-mode", theme === "auto" ? (mq.matches ? "dark" : "light") : theme);
+    apply();
+    mq.addEventListener("change", apply);
     try { localStorage.setItem("ledgerline.theme", theme); } catch {}
+    return () => mq.removeEventListener("change", apply);
   }, [theme]);
   return [theme, setTheme] as const;
 }

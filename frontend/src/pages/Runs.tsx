@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
+import { gridTheme } from "../lib/gridTheme";
 import type { ColDef } from "ag-grid-community";
 import { AgentRun, api, ACTION_LABEL, RULE_LABEL, ago } from "../lib/api";
 import { Trace } from "../components/Trace";
@@ -31,8 +32,9 @@ export default function Runs() {
       <h1>Agent runs</h1>
       <p className="lede">Every run is a checkpointed graph: load the chain, triage, investigate with read-only tools, propose one action, pass the policy gate. Nothing in a run can move money on its own.</p>
       <div className="two">
-        <div className="ag-theme-ledger" style={{ height: "calc(100vh - 220px)", minHeight: 400 }}>
+        <div className="grid" style={{ height: "calc(100vh - 220px)", minHeight: 400 }}>
           <AgGridReact<AgentRun>
+            theme={gridTheme}
             rowData={runs.data ?? []}
             columnDefs={cols}
             defaultColDef={{ sortable: true, resizable: true }}

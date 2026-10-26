@@ -169,7 +169,7 @@ docs/          architecture
 ## Tests
 
 ```bash
-cd backend && python -m pytest -q     # 27 tests, real Postgres
+cd backend && python -m pytest -q     # 28 tests, real Postgres
 ```
 
 Covers ledger idempotency and rebuild, each rule, the policy gate, the confidence floor, the
