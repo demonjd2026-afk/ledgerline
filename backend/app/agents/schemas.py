@@ -3,14 +3,32 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+def _clip(text: str, limit: int) -> str:
+    """Trim at a sentence or word boundary rather than rejecting the whole proposal."""
+    text = " ".join(str(text).split())
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    for sep in (". ", "; ", ", ", " "):
+        i = cut.rfind(sep)
+        if i > limit * 0.5:
+            return cut[: i + (1 if sep == ". " else 0)].rstrip() + ("" if sep == ". " else "…")
+    return cut.rstrip() + "…"
 
 
 class Triage(BaseModel):
     specialist: Literal["dispute_defender", "refund_advisor", "drift_explainer"]
-    summary: str = Field(max_length=240, description="One sentence, plain language: what is wrong and why it matters")
+    summary: str = Field(description="One sentence, plain language: what is wrong and why it matters")
     missing_evidence: list[str] = Field(default_factory=list, description="Facts you still need before proposing an action")
     confidence: float = Field(ge=0, le=1)
+
+    @field_validator("summary", mode="before")
+    @classmethod
+    def _clip_summary(cls, v: str) -> str:
+        return _clip(v, 240)
 
 
 class EvidenceItem(BaseModel):
@@ -48,9 +66,19 @@ class EvidenceItem(BaseModel):
 
 class Proposal(BaseModel):
     action: Literal["refund", "provide_evidence", "ledger_correction", "no_action", "escalate"]
-    headline: str = Field(max_length=140, description="One sentence an operator reads first: the finding and the action, with the key id and amount")
-    rationale: str = Field(max_length=600, description="Two to four sentences of supporting facts from the tools, ids and amounts exact. No restating the headline.")
+    headline: str = Field(description="One short sentence (under 140 characters) an operator reads first: the finding and the action, with the key id and amount")
+    rationale: str = Field(description="Two to four sentences (under 600 characters) of supporting facts from the tools, ids and amounts exact. No restating the headline.")
     confidence: float = Field(ge=0, le=1)
+
+    @field_validator("headline", mode="before")
+    @classmethod
+    def _clip_headline(cls, v: str) -> str:
+        return _clip(v, 160)
+
+    @field_validator("rationale", mode="before")
+    @classmethod
+    def _clip_rationale(cls, v: str) -> str:
+        return _clip(v, 700)
     # refund
     capture_id: str | None = None
     order_id: str | None = None
