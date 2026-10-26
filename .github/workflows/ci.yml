@@ -24,7 +24,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://ledgerline:ledgerline@localhost:5432/ledgerline
           APP_ENV: test
-      - run: cd backend && ruff check app
+      - run: cd backend && ruff check app tests
       - run: cd backend && bandit -q -r app -ll
       - run: cd backend && pip-audit
 

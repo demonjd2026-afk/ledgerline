@@ -1,7 +1,7 @@
 """Ledger, reconciliation, agent and approval behaviour, end to end, against Postgres."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -9,14 +9,13 @@ from app.agents.runner import resume_run, start_run
 from app.domain.events import EventType, LedgerEvent, ResourceType, normalise_webhook
 from app.domain.models import Approval, Break, Capture, LedgerEventRow, Refund
 from app.domain.money import Money
-from app.ingest.pipeline import ingest_event
 from app.ledger import store
 from app.ledger.store import rebuild_projections
 from app.recon.engine import reconcile, reconcile_all
 from app.sim.replay import FIXTURES, replay_file
 from app.worker import queue
 
-NOW = datetime(2026, 10, 25, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 25, 12, 0, tzinfo=UTC)
 
 
 def _order(order_id: str, value: str, captures: list[tuple[str, str]]):
@@ -115,8 +114,11 @@ def test_silent_refund_at_paypal_opens_drift(session):
 def test_duplicate_order_fires_on_later_order_and_clears_after_refund(session):
     from datetime import timedelta
 
-    a = _order("OA", "18.50", [("CA", "18.50")]); a["payer"] = {"email_address": "lena@example.com", "payer_id": "P1"}
-    b = _order("OB", "18.50", [("CB", "18.50")]); b["payer"] = {"email_address": "lena@example.com", "payer_id": "P1"}
+    payer = {"email_address": "lena@example.com", "payer_id": "P1"}
+    a = _order("OA", "18.50", [("CA", "18.50")])
+    a["payer"] = payer
+    b = _order("OB", "18.50", [("CB", "18.50")])
+    b["payer"] = dict(payer)
     b["create_time"] = (NOW + timedelta(seconds=40)).isoformat()
     _append_order(session, a)
     store.append(session, LedgerEvent(LedgerEvent.key("webhook", "WH-OB", EventType.ORDER_COMPLETED), "webhook", EventType.ORDER_COMPLETED, ResourceType.ORDER, "OB", NOW + timedelta(seconds=40), b, Money(1850, "USD"), "OB"))
