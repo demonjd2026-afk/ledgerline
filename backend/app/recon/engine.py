@@ -79,6 +79,15 @@ def load_scope(session: Session, correlation_id: str | None = None, resource: tu
             scope.transactions[rid] = t
             if c := session.get(Capture, rid):
                 scope.captures[c.id] = c
+    # Every capture in scope brings its order (and that order's other captures/refunds), so
+    # order-level rules see the whole chain rather than a fragment.
+    for c in list(scope.captures.values()):
+        if c.order_id and c.order_id not in scope.orders and (o := session.get(Order, c.order_id)):
+            scope.orders[o.id] = o
+            for sib in session.execute(select(Capture).where(Capture.order_id == o.id)).scalars():
+                scope.captures[sib.id] = sib
+            for r in session.execute(select(Refund).where(Refund.order_id == o.id)).scalars():
+                scope.refunds[r.id] = r
     return scope
 
 
@@ -125,7 +134,8 @@ def persist(session: Session, findings: list[Finding], scoped_resources: set[tup
         else:
             row.title, row.expected, row.observed = f.title, f.expected, f.observed
             row.delta_minor, row.last_seen_at = f.delta_minor, now
-            if row.status == "resolved" and row.resolution and row.resolution.get("kind") != "dismissed":
+            sticky = {"dismissed", "no_action", "escalated"}  # a human/agent judged it; don't nag
+            if row.status == "resolved" and row.resolution and row.resolution.get("kind") not in sticky:
                 # It came back: reopen.
                 row.status, row.resolved_at, row.resolution = "open", None, None
                 new.append(row)

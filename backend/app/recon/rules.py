@@ -421,12 +421,15 @@ def settlement_lag(s: Scope) -> list[Finding]:
     hours = get_settings().settlement_lag_hours
     if not s.transactions:
         return []  # no reporting data at all: not a lag, an absent source
+    # Reporting is only "caught up" to the newest transaction it has shown us. A capture newer
+    # than that is simply not covered yet; a capture older than coverage minus the lag is missing.
+    coverage = max(t.initiated_at for t in s.transactions.values())
     out = []
     for c in s.captures.values():
         if c.status != "COMPLETED" or c.settled_tx_id:
             continue
         age = s.now - c.created_at
-        if age > timedelta(hours=hours):
+        if age > timedelta(hours=hours) and c.created_at + timedelta(hours=hours) <= coverage:
             out.append(
                 Finding(
                     rule="SETTLEMENT_LAG",

@@ -77,7 +77,7 @@ class PayPalClient:
 
     @retry(
         retry=retry_if_exception(_is_retryable),
-        wait=wait_exponential_jitter(initial=0.5, max=8),
+        wait=wait_exponential_jitter(multiplier=0.5, max=8),
         stop=stop_after_attempt(5),
         reraise=True,
     )

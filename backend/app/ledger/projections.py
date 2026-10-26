@@ -227,7 +227,8 @@ def _payout_batch(session: Session, ev: LedgerEventRow) -> None:
 
 def _dispute(session: Session, ev: LedgerEventRow) -> None:
     p = ev.payload
-    amt = _money(p.get("dispute_amount")) or Money(ev.amount_minor or 0, ev.currency or "USD")
+    amt = _money(p.get("dispute_amount"))
+    fallback = Money(ev.amount_minor or 0, ev.currency or "USD")
     txs = p.get("disputed_transactions") or []
     tx_id = txs[0].get("seller_transaction_id") if txs else None
     due = p.get("seller_response_due_date")
@@ -236,15 +237,15 @@ def _dispute(session: Session, ev: LedgerEventRow) -> None:
         session,
         Dispute,
         ev.resource_id,
-        {"amount_minor": amt.minor, "currency": amt.currency, "status": p.get("status") or "OPEN"},
+        {"amount_minor": (amt or fallback).minor, "currency": (amt or fallback).currency, "status": p.get("status") or "OPEN"},
         {
             "transaction_id": tx_id,
             "order_id": ev.correlation_id,
             "status": p.get("status"),
             "reason": p.get("reason"),
             "stage": p.get("dispute_life_cycle_stage"),
-            "amount_minor": amt.minor,
-            "currency": amt.currency,
+            "amount_minor": amt.minor if amt else None,
+            "currency": amt.currency if amt else None,
             "seller_response_due": parse_ts(due) if due else None,
             "evidence_submitted": bool(p.get("evidences")) or None,
             "outcome": outcome,

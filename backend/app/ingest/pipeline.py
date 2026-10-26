@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.domain.events import EventType, LedgerEvent, ResourceType, correlation_from_resource, normalise_webhook, parse_ts
-from app.domain.models import Capture, Order, WebhookInbox
+from app.domain.models import Capture, Dispute, Order, WebhookInbox
 from app.domain.money import Money
 from app.ledger import store
 from app.logging import get_logger
@@ -40,6 +40,14 @@ def ingest_event(session: Session, ev: LedgerEvent, paypal: PayPalClient | None)
     if inserted:
         _enrich(session, ev, paypal)
     corr = ev.correlation_id or (ev.resource_id if ev.resource_type == ResourceType.ORDER else None)
+    if ev.resource_type == ResourceType.DISPUTE and corr:
+        # A dispute correlates by transaction (capture) id; resolve it to the order when we can.
+        cap = session.get(Capture, corr)
+        if cap and cap.order_id:
+            corr = cap.order_id
+            d = session.get(Dispute, ev.resource_id)
+            if d is not None:
+                d.order_id = corr
     new_breaks = reconcile(session, correlation_id=corr, resource=(str(ev.resource_type), ev.resource_id))
     for b in new_breaks:
         if b.severity in ("critical", "warn"):

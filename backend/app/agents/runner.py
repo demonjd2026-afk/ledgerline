@@ -88,6 +88,9 @@ def start_run(session: Session, break_id: int, paypal: PayPalClient | None) -> A
     b = session.get(Break, break_id)
     if b is None:
         raise RuntimeError(f"break {break_id} not found")
+    if b.status == "resolved":
+        log.info("agent.skip_resolved", break_id=break_id)
+        return AgentRun(break_id=break_id, thread_id="skipped", status="closed")
     existing = session.execute(
         select(AgentRun).where(AgentRun.break_id == break_id, AgentRun.status.in_(["running", "awaiting_approval"]))
     ).scalar_one_or_none()

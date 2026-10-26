@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     paypal_client_secret: str = ""
     paypal_webhook_id: str = ""  # from the developer dashboard; required to verify signatures
     allow_live: bool = False  # hard safety: live mutations refuse to run unless explicitly enabled
+    paypal_dry_run: bool = False  # executor logs intended PayPal mutations instead of sending them (fixture demos)
 
     # Agents
     llm_model: str = "anthropic:claude-sonnet-4-5"

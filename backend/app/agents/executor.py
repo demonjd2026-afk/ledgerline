@@ -29,7 +29,9 @@ def execute_approval(session: Session, paypal: PayPalClient | None, approval_id:
 
     p = ap.proposal
     try:
-        if ap.action == "refund":
+        if get_settings().paypal_dry_run and ap.action in ("refund", "provide_evidence"):
+            result = _dry_run(session, ap, p)
+        elif ap.action == "refund":
             result = _refund(session, paypal, ap, p)
         elif ap.action == "provide_evidence":
             result = _provide_evidence(session, paypal, ap, p)
@@ -153,6 +155,49 @@ def _ledger_correction(session: Session, ap: Approval, p: dict) -> dict:
     )
     store.append(session, ev)
     return {"status": "executed", "correction": corr}
+
+
+def _dry_run(session: Session, ap: Approval, p: dict) -> dict:
+    """PAYPAL_DRY_RUN=true: record the exact call we would have made, mark the break resolved, touch
+    nothing at PayPal. Used for fixture-replay demos and tests."""
+    if ap.action == "refund":
+        cap = session.get(Capture, p.get("capture_id") or "")
+        if cap is None:
+            raise RuntimeError("capture not in ledger; refusing to refund an unknown capture")
+        amount = Money(int(p["amount_minor"]), p.get("currency") or cap.currency)
+        if amount.minor > cap.amount_minor:
+            raise RuntimeError("refund exceeds capture amount")
+        call = {"method": "POST", "path": f"/v2/payments/captures/{cap.id}/refund", "body": {"amount": amount.to_paypal(), "note_to_payer": p.get("note_to_payer")}, "PayPal-Request-Id": ap.idempotency_key}
+        # Mirror what the webhook would later tell us so the ledger stays consistent.
+        ev = LedgerEvent(
+            event_key=LedgerEvent.key("sim", f"dryrun-{ap.id}", "REFUND_COMPLETED"),
+            source="sim",
+            event_type=EventType.REFUND_COMPLETED,
+            resource_type=ResourceType.REFUND,
+            resource_id=f"DRYRUN-REF-{ap.id}",
+            occurred_at=datetime.now(tz=timezone.utc),
+            payload={"id": f"DRYRUN-REF-{ap.id}", "status": "COMPLETED", "amount": amount.to_paypal(), "supplementary_data": {"related_ids": {"capture_id": cap.id, "order_id": cap.order_id}}},
+            amount=amount,
+            correlation_id=cap.order_id,
+        )
+        store.append(session, ev)
+        return {"status": "executed", "dry_run": True, "would_call": call, "amount": str(amount)}
+    if ap.action == "provide_evidence":
+        evidences = [{"evidence_type": e["evidence_type"], "notes": e["notes"][:2000]} for e in p.get("evidences") or []]
+        call = {"method": "POST", "path": f"/v1/customer/disputes/{p.get('dispute_id')}/provide-evidence", "body": {"evidences": evidences}, "PayPal-Request-Id": ap.idempotency_key}
+        ev = LedgerEvent(
+            event_key=LedgerEvent.key("sim", p.get("dispute_id") or f"dryrun-{ap.id}", f"EVIDENCE_{ap.idempotency_key}"),
+            source="sim",
+            event_type=EventType.DISPUTE_UPDATED,
+            resource_type=ResourceType.DISPUTE,
+            resource_id=p.get("dispute_id") or "",
+            occurred_at=datetime.now(tz=timezone.utc),
+            payload={"dispute_id": p.get("dispute_id"), "status": "UNDER_REVIEW", "evidences": evidences},
+            correlation_id=p.get("order_id"),
+        )
+        store.append(session, ev)
+        return {"status": "executed", "dry_run": True, "would_call": call, "evidence_count": len(evidences)}
+    raise RuntimeError("dry run not supported for this action")
 
 
 def _close_only(session: Session, ap: Approval, p: dict) -> dict:
