@@ -1,39 +1,160 @@
 # Ledgerline
 
 **Autonomous revenue-operations agent for PayPal merchants.**
-An event-sourced ledger of everything that happens on a PayPal account, continuous
-reconciliation against PayPal's own APIs, and policy-gated AI agents that resolve the
-breaks — drafting dispute evidence, computing refunds, explaining drift — with a human
-in the loop wherever money or a dispute is involved.
 
-> Built for the PayPal AI Hackathon 2026. Sandbox only.
+Ledgerline keeps an independent, event-sourced ledger of everything that happens on a
+PayPal account, reconciles it continuously against PayPal's own APIs, and dispatches AI
+agents to fix what breaks — drafting dispute evidence, computing refunds, explaining drift —
+under a policy engine that decides what runs on its own and what waits for a person.
 
-## Why
+> Built for the PayPal AI Hackathon 2026. Sandbox only. MIT licence.
 
-Merchants find out about problems from PayPal's dashboard, days late: a capture that
-never matched its order, a refund recorded twice, a dispute that quietly hit its
-response deadline. Ledgerline keeps its own copy of the truth, notices the moment the
-two diverge, and puts a worked, evidence-backed proposal in front of an operator — or
-executes it when policy says it is safe.
+## The problem
 
-## What it does
+Merchants learn about money problems late and from the wrong place: a capture that never
+matched its order, a refund webhook delivered twice, a dispute that quietly reaches its
+response deadline, a payout to a creator that silently failed. The data to catch all of
+this exists — in webhooks, the Orders and Payments APIs, Transaction Search, the Disputes
+API — but nobody is joining it, and nobody is acting on it at 2 a.m.
 
-| Layer | What |
+## What Ledgerline does
+
+1. **Ingests** every PayPal webhook (signature-verified) and polls Transaction Search and
+   Disputes as a second source of truth.
+2. **Records** each one as an immutable, idempotent ledger event, then projects orders,
+   captures, refunds, payouts, disputes and invoices from it. Replay is deterministic.
+3. **Reconciles** with twelve rules that emit typed *breaks*: `expected`, `observed`,
+   `delta`, severity. A break that stops firing resolves itself.
+4. **Investigates** each break with a LangGraph agent — triage, then a specialist
+   (dispute defender, refund advisor, drift explainer) that uses read-only PayPal and
+   ledger tools and must return a structured proposal, never prose.
+5. **Gates** the proposal with a versioned YAML policy: a $14 refund on a fresh order runs
+   itself; anything touching a dispute, or above threshold, pauses the graph for a human.
+6. **Executes** through one audited path with idempotency keys derived from the approval,
+   so a retry can never refund twice or submit evidence twice.
+7. **Shows** all of it in an operator console: breaks as ledger lines, proposals with the
+   policy's reasons, approve/decline, and the agent's full tool trace.
+
+Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## PayPal surface used
+
+| Capability | How |
 |---|---|
-| **Ingest** | Verified PayPal webhooks + Transaction Search / Disputes polling as a second source of truth |
-| **Ledger** | Append-only, idempotent event log; deterministic projections; rebuildable |
-| **Reconcile** | 12 rules producing typed breaks with `expected`, `observed`, `delta` |
-| **Agents** | LangGraph triage → specialist (dispute defender, refund advisor, drift explainer) → structured proposal |
-| **Policy** | Deterministic YAML gate: auto-execute within limits, otherwise pause for approval |
-| **Execute** | The only code that mutates PayPal; idempotency keys derived from the approval id |
-| **Console** | React + AG Grid: ledger explorer, breaks queue, agent traces, approvals inbox |
+| Webhooks + `verify-webhook-signature` | inbound truth, forensics inbox for rejected signatures |
+| Orders v2 (incl. card `payment_source`) | sandbox seeding without browser redirects; order enrichment |
+| Payments v2 captures / refunds | refund execution, capture snapshots for drift detection |
+| Transaction Search (reporting) | settlement view; `SETTLEMENT_LAG`, invoice payment matching |
+| Customer Disputes v1 | dispute polling, `provide-evidence`, `send-message` |
+| Payouts v1 | creator-split payouts; failed-item and fee-variance rules |
+| Invoicing v2 | invoice creation/sending; paid-without-payment rule |
 
-Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+## Run the demo in five minutes (no PayPal or LLM keys needed)
 
-## Status
+Requires Python 3.11+, Node 20+, and a Postgres 16 (Docker is fine).
 
-Work in progress — see commit history. Setup, demo and deployment instructions land with the first release.
+```bash
+git clone https://github.com/demonjd2026-afk/ledgerline && cd ledgerline
+
+# 1. database
+docker run -d --name ledgerline-db -p 5432:5432 \
+  -e POSTGRES_USER=ledgerline -e POSTGRES_PASSWORD=ledgerline -e POSTGRES_DB=ledgerline postgres:16-alpine
+
+# 2. backend
+cd backend && cp .env.example .env && pip install -e ".[dev]" && ledgerline migrate
+
+# 3. console
+cd ../frontend && npm ci && npm run build && cd ../backend
+
+# 4. replay 18 recorded PayPal inputs through the real pipeline, run the agents, stop at the policy gate
+LLM_MODEL=stub PAYPAL_DRY_RUN=true ledgerline sim replay
+
+# 5. open the console
+ledgerline api            # http://localhost:8000
+```
+
+You will see 8 open breaks across five scenarios, 6 proposals waiting for approval and 1
+that policy executed on its own. Approve one in **Approvals** and watch the break resolve
+and the ledger gain a correction event. `ledgerline reconcile` re-runs every rule.
+
+`LLM_MODEL=stub` is a deterministic agent that produces the same proposals every time, so
+the demo is reproducible. Set `LLM_MODEL=anthropic:claude-sonnet-4-5` (or any LangChain
+provider string) plus the provider's API key to see the real agent investigate with tools.
+
+`PAYPAL_DRY_RUN=true` makes the executor record the exact PayPal call it would make instead
+of sending it. Turn it off once sandbox credentials are set to execute for real.
+
+## Run against your PayPal sandbox
+
+```bash
+# backend/.env
+PAYPAL_CLIENT_ID=...          # developer.paypal.com → Apps & Credentials (sandbox)
+PAYPAL_CLIENT_SECRET=...
+PAYPAL_WEBHOOK_ID=...         # register https://<your-host>/webhooks/paypal, subscribe to all events
+LLM_MODEL=anthropic:claude-sonnet-4-5
+ANTHROPIC_API_KEY=...
+
+ledgerline sim seed           # creates card orders, a refund, a payout batch, an invoice in your sandbox
+ledgerline sim inject         # silent refund at PayPal, duplicate refund record, ghost capture
+ledgerline worker             # in a second terminal: drains jobs, runs agents, polls every 5 min
+ledgerline api
+```
+
+Webhooks need a public URL; `ngrok http 8000` works locally. Without one, the poller and
+the direct-read enricher still catch everything, just later.
+
+## Deploy on Render
+
+`render.yaml` is a Blueprint: one Docker image, a web service (API + console), a worker,
+and a managed Postgres. Migrations run as the pre-deploy command. Set the `sync: false`
+secrets in the dashboard after the first deploy.
+
+## Policy
+
+`backend/policy.yaml` is the whole contract between the agent and the merchant:
+
+```yaml
+auto_approve:
+  refund: { max_amount_minor: 2500, max_order_age_days: 30, not_if: [dispute_open_on_order, prior_refund_on_capture, payer_blocklisted] }
+never_auto: [provide_evidence, accept_claim, void_authorization, escalate]
+max_refund_minor: 100000
+```
+
+Every approval row records the policy version and the reasons that decided it.
+
+## Project layout
+
+```
+backend/app
+  domain/      money (integers only), event vocabulary, SQLAlchemy models
+  paypal/      typed client: OAuth cache, retries, PayPal-Request-Id idempotency
+  ingest/      webhook receiver, pipeline, Transaction Search / Disputes poller
+  ledger/      append-only store, deterministic projections, rebuild
+  recon/       twelve rules → breaks
+  agents/      LangGraph graph, tools, policy gate, executor, stub LLM
+  worker/      Postgres SKIP LOCKED job queue + worker loop
+  sim/         sandbox seeder, fault injection, fixture replay
+  api/         operator API
+frontend/      React + AG Grid console
+docs/          architecture
+```
+
+## Tests
+
+```bash
+cd backend && python -m pytest -q     # 23 tests, real Postgres
+```
+
+Covers ledger idempotency and rebuild, each rule, the policy gate, the human-in-the-loop
+pause/resume, idempotent execution, the queue, and the demo fixture.
+
+## What it does not do (yet)
+
+- Live mode is disabled by default (`ALLOW_LIVE=false`) and untested; the project is sandbox-only.
+- Dispute creation cannot be driven from the merchant API; create one in your sandbox buyer
+  account, or rely on the fixture.
+- Attachments on dispute evidence (PDF proofs) are not uploaded; text evidence only.
 
 ## Licence
 
-MIT
+MIT — see [LICENSE](LICENSE).

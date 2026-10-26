@@ -1,0 +1,62 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# One image, two services (API+console and worker), one managed Postgres.
+services:
+  - type: web
+    name: ledgerline
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    preDeployCommand: alembic upgrade head
+    envVars:
+      - key: APP_ENV
+        value: prod
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ledgerline-db
+          property: connectionString
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: LLM_MODEL
+        value: anthropic:claude-sonnet-4-5
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: '["https://ledgerline.onrender.com"]'
+
+  - type: worker
+    name: ledgerline-worker
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerCommand: ledgerline worker
+    envVars:
+      - key: APP_ENV
+        value: prod
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ledgerline-db
+          property: connectionString
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: LLM_MODEL
+        value: anthropic:claude-sonnet-4-5
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: POLL_INTERVAL_SECONDS
+        value: "300"
+
+databases:
+  - name: ledgerline-db
+    plan: basic-256mb
+    postgresMajorVersion: "16"

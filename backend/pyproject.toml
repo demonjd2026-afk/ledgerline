@@ -2,7 +2,6 @@
 name = "ledgerline"
 version = "0.1.0"
 description = "Autonomous revenue-operations agent for PayPal merchants: event-sourced ledger, reconciliation, policy-gated AI remediation."
-readme = "../README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
