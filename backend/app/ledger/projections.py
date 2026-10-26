@@ -114,8 +114,16 @@ def _capture_from(session: Session, ev: LedgerEventRow, cap: dict, order_id: str
         "final_capture": cap.get("final_capture", True),
     }
     if ev.source in ("api", "poll"):
+        # PayPal's direct view lives in api_* columns. It does not overwrite the webhook-derived
+        # status/amount of an existing row — the gap between the two is what WEBHOOK_API_DRIFT reports.
         updates["api_status"] = cap.get("status")
         updates["api_amount_minor"] = amt.minor
+        if session.get(Capture, cap["id"]) is not None:
+            updates.pop("status")
+            updates.pop("amount_minor")
+    elif ev.source == "correction":
+        # A correction aligns the ledger with the API view it cites.
+        updates["api_status"] = cap.get("status")
     _upsert(session, Capture, cap["id"], {"amount_minor": amt.minor, "currency": amt.currency, "status": cap.get("status") or "UNKNOWN"}, updates, ev)
 
 

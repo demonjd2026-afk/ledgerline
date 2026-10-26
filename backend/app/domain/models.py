@@ -212,7 +212,7 @@ class Break(Base):
     fingerprint: Mapped[str] = mapped_column(String(200), unique=True)
     rule: Mapped[str] = mapped_column(String(48), index=True)
     severity: Mapped[str] = mapped_column(String(10))  # info|warn|critical
-    status: Mapped[str] = mapped_column(String(16), default="open", index=True)  # open|in_progress|awaiting_approval|resolved|dismissed
+    status: Mapped[str] = mapped_column(String(24), default="open", index=True)  # open|in_progress|awaiting_approval|resolved|dismissed
     resource_type: Mapped[str] = mapped_column(String(24))
     resource_id: Mapped[str] = mapped_column(String(80))
     correlation_id: Mapped[str | None] = mapped_column(String(80), index=True)

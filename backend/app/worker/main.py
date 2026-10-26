@@ -71,6 +71,9 @@ def main() -> None:
     s = get_settings()
     paypal = PayPalClient() if s.paypal_configured else None
     handlers = _handlers()
+    from app.agents.runner import ensure_checkpointer
+
+    ensure_checkpointer()
 
     def _stop(*_):
         global _running

@@ -181,12 +181,17 @@ def refund_exceeds_capture(s: Scope) -> list[Finding]:
 def webhook_api_drift(s: Scope) -> list[Finding]:
     """Ledger (webhook-derived) status/amount disagrees with what the API/poll last said."""
     out = []
-    terminal_equiv = {("COMPLETED", "PARTIALLY_REFUNDED"), ("COMPLETED", "REFUNDED")}
     for c in s.captures.values():
         if not c.api_status:
             continue
-        pair = (c.status, c.api_status)
-        status_ok = c.status == c.api_status or pair in terminal_equiv or pair[::-1] in terminal_equiv
+        # What the ledger *implies* the capture status is, given the refunds it knows about.
+        refunded = sum(r.amount_minor for r in s.refunds_for_capture(c.id) if r.status in ("COMPLETED", "PENDING"))
+        implied = c.status
+        if c.status == "COMPLETED" and refunded >= c.amount_minor > 0:
+            implied = "REFUNDED"
+        elif c.status == "COMPLETED" and refunded > 0:
+            implied = "PARTIALLY_REFUNDED"
+        status_ok = implied == c.api_status
         amount_ok = c.api_amount_minor is None or c.api_amount_minor == c.amount_minor
         if status_ok and amount_ok:
             continue
@@ -197,9 +202,9 @@ def webhook_api_drift(s: Scope) -> list[Finding]:
                 resource_type="capture",
                 resource_id=c.id,
                 correlation_id=c.order_id,
-                title=f"Capture {c.id}: ledger says {c.status}/{_fmt(c.amount_minor, c.currency)}, PayPal says {c.api_status}/{_fmt(c.api_amount_minor or c.amount_minor, c.currency)}",
+                title=f"Capture {c.id}: ledger implies {implied}/{_fmt(c.amount_minor, c.currency)}, PayPal says {c.api_status}/{_fmt(c.api_amount_minor or c.amount_minor, c.currency)}",
                 expected={"status": c.api_status, "amount": _fmt(c.api_amount_minor or c.amount_minor, c.currency), "source": "paypal_api"},
-                observed={"status": c.status, "amount": _fmt(c.amount_minor, c.currency), "source": "ledger"},
+                observed={"status": implied, "raw_status": c.status, "amount": _fmt(c.amount_minor, c.currency), "refunded": _fmt(refunded, c.currency), "source": "ledger"},
                 delta_minor=(c.amount_minor - (c.api_amount_minor or c.amount_minor)),
                 currency=c.currency,
             )

@@ -77,7 +77,7 @@ def upgrade() -> None:
     sa.Column('fingerprint', sa.String(length=200), nullable=False),
     sa.Column('rule', sa.String(length=48), nullable=False),
     sa.Column('severity', sa.String(length=10), nullable=False),
-    sa.Column('status', sa.String(length=16), nullable=False),
+    sa.Column('status', sa.String(length=24), nullable=False),
     sa.Column('resource_type', sa.String(length=24), nullable=False),
     sa.Column('resource_id', sa.String(length=80), nullable=False),
     sa.Column('correlation_id', sa.String(length=80), nullable=True),
