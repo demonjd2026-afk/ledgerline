@@ -24,8 +24,11 @@ log = get_logger("agent.runner")
 
 @lru_cache
 def _checkpointer() -> PostgresSaver:
+    import atexit
+
     url = get_settings().database_url.replace("postgresql+psycopg://", "postgresql://")
-    pool = ConnectionPool(conninfo=url, max_size=4, kwargs={"autocommit": True, "prepare_threshold": 0})
+    pool = ConnectionPool(conninfo=url, max_size=4, open=True, kwargs={"autocommit": True, "prepare_threshold": 0})
+    atexit.register(pool.close)
     return PostgresSaver(pool)
 
 
