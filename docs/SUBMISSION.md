@@ -49,7 +49,7 @@ Event-sourcing the merchant's side turns "the AI said so" into "the ledger says 
 
 ## What's next
 
-Attachments on dispute evidence, Braintree and Venmo sources, per-merchant policy editing in the console, and a nightly reconciliation report.
+SSO (OIDC) with viewer/operator/admin roles in place of the demo's shared operator token, with the approver's identity on every approval row; attachments on dispute evidence; Braintree and Venmo sources; per-merchant policy editing in the console; a nightly reconciliation report.
 
 ## Built with
 
