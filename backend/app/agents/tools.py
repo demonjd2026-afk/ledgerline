@@ -127,29 +127,46 @@ def build_tools(session: Session, paypal: PayPalClient | None) -> list:
     @tool
     def paypal_get_order(order_id: str) -> str:
         """Fetch the order from PayPal's Orders API — PayPal's current view, to compare against the ledger."""
-        return _pp(lambda: paypal.get_order(order_id))
+        return _pp(lambda: paypal.get_order(order_id), "order", order_id)
 
     @tool
     def paypal_get_capture(capture_id: str) -> str:
         """Fetch a capture from PayPal's Payments API, including seller_receivable_breakdown and status."""
-        return _pp(lambda: paypal.get_capture(capture_id))
+        return _pp(lambda: paypal.get_capture(capture_id), "capture", capture_id)
 
     @tool
     def paypal_get_dispute(dispute_id: str) -> str:
         """Fetch a dispute from PayPal's Disputes API: reason, stage, due date, evidence requested, messages."""
-        return _pp(lambda: paypal.get_dispute(dispute_id))
+        return _pp(lambda: paypal.get_dispute(dispute_id), "dispute", dispute_id)
 
     @tool
     def paypal_get_refund(refund_id: str) -> str:
         """Fetch a refund from PayPal's Payments API."""
-        return _pp(lambda: paypal.get_refund(refund_id))
+        return _pp(lambda: paypal.get_refund(refund_id), "refund", refund_id)
 
-    def _pp(fn) -> str:
+    def _snapshot(resource_type: str, resource_id: str) -> dict | None:
+        """Latest API/poll snapshot of a resource that the ledger holds (source != webhook)."""
+        for ev in reversed(store.events_for_resource(session, resource_type, resource_id)):
+            if ev.source in ("api", "poll") and isinstance(ev.payload, dict):
+                return {"recorded_at": ev.occurred_at.isoformat(), "source": ev.source, "resource": ev.payload}
+        return None
+
+    def _pp(fn, resource_type: str | None = None, resource_id: str | None = None) -> str:
         if paypal is None:
             return json.dumps({"error": "PayPal client not configured in this environment"})
         try:
             return json.dumps(fn(), default=str)
         except PayPalError as exc:
-            return json.dumps({"error": str(exc), "status": exc.status, "body": exc.body}, default=str)
+            out: dict[str, Any] = {"error": str(exc), "status": exc.status, "body": exc.body}
+            if exc.status == 404 and resource_type and resource_id:
+                snap = _snapshot(resource_type, resource_id)
+                out["note"] = (
+                    "PayPal returned 404 for this id. That means it is not visible to these credentials right now "
+                    "(different account or environment, or not yet propagated); it is NOT proof the record never existed. "
+                    "Treat the resource as unverifiable at PayPal and rely on the ledger."
+                )
+                if snap:
+                    out["last_api_snapshot_in_ledger"] = snap
+            return json.dumps(out, default=str)
 
     return [ledger_order_chain, ledger_capture, ledger_dispute, paypal_get_order, paypal_get_capture, paypal_get_dispute, paypal_get_refund]
