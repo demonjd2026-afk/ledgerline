@@ -109,6 +109,9 @@ def reset(yes: bool = typer.Option(False, "--yes", help="Skip confirmation")):
         raise typer.Exit(2)
     if not yes and not typer.confirm("Truncate all ledger, break, run and approval tables?"):
         raise typer.Exit(1)
+    from app.agents.runner import ensure_checkpointer
+
+    ensure_checkpointer()  # creates LangGraph's checkpoint tables if this is a fresh database
     with _session() as s:
         s.execute(
             text(
