@@ -57,7 +57,7 @@ python, fastapi, langgraph, langchain, postgresql, sqlalchemy, react, typescript
 
 ## Testing instructions (for judges)
 
-**Hosted:** `<render URL>` — sign in with operator token `<OPERATOR_TOKEN>`. The database is pre-seeded; click **Approvals**, open any proposal, approve or decline it, then watch **Runs** for the trace.
+**Hosted (no setup):** https://ledgerline-wcpx.onrender.com/?token=<OPERATOR_TOKEN> — the link signs you in (or paste the token `<OPERATOR_TOKEN>` when prompted). The ledger is pre-seeded from the recorded PayPal fixture and the agents have already run against it with Claude: click **Breaks**, open *Ledger disagrees with PayPal*, then **Approvals** → approve or decline a proposal, then **Agent runs** for the full tool trace. The hosted instance runs the PayPal executor in dry-run mode, so an approval records the exact PayPal call it would make rather than sending it.
 
 **Local, no keys:**
 ```bash

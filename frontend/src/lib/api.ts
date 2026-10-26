@@ -83,6 +83,19 @@ export function setToken(t: string) {
   try { sessionStorage.setItem(TOKEN_KEY, t); } catch {}
 }
 
+// Sign-in link: /?token=<OPERATOR_TOKEN> stores the token and is scrubbed from the URL so it never
+// lingers in history or screenshots. The prompt() below stays as the fallback.
+(function adoptTokenFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    const t = url.searchParams.get("token");
+    if (!t) return;
+    setToken(t.trim());
+    url.searchParams.delete("token");
+    window.history.replaceState({}, "", url.pathname + (url.search || "") + url.hash);
+  } catch {}
+})();
+
 async function j<T>(input: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { "content-type": "application/json" };
   const t = token();
