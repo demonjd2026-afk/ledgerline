@@ -1,0 +1,33 @@
+# Ledgerline remediation policy.
+# Deterministic. Versioned with the code. Every approval row records the version that decided it.
+version: 1
+
+# Actions the agent may execute without a human when ALL conditions hold.
+auto_approve:
+  refund:
+    max_amount_minor: 2500            # <= $25.00
+    max_order_age_days: 30
+    not_if:
+      - dispute_open_on_order         # never refund under a dispute; PayPal handles the money
+      - prior_refund_on_capture       # a second refund is always reviewed
+      - payer_blocklisted
+  ledger_correction:
+    allowed_rules:
+      - SETTLEMENT_LAG                # informational; correcting our own record is low risk
+  no_action:
+    allowed_rules:
+      - PAYOUT_FEE_VARIANCE
+      - INVOICE_PAID_NO_CAPTURE
+
+# Actions that always wait for a human, whatever the amount.
+never_auto:
+  - provide_evidence
+  - accept_claim
+  - void_authorization
+  - escalate
+
+# Payers that always escalate (sandbox examples; replace in deployment).
+payer_blocklist: []
+
+# Hard ceiling: the agent may never propose a refund above this even for human approval.
+max_refund_minor: 100000              # $1,000.00
