@@ -59,7 +59,8 @@ Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Run the demo in five minutes (no PayPal or LLM keys needed)
 
-Requires Python 3.11+, Node 20+, and a Postgres 16 (Docker is fine).
+Requires Python 3.11+, Node 20+, and a Postgres 16 (Docker is fine). On macOS,
+`bash scripts/setup-mac.sh` installs all three via Homebrew and does steps 1–3 below.
 
 ```bash
 git clone https://github.com/demonjd2026-afk/ledgerline && cd ledgerline
