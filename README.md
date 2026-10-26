@@ -9,6 +9,12 @@ under a policy engine that decides what runs on its own and what waits for a per
 
 > Built for the PayPal AI Hackathon 2026. Sandbox only. MIT licence.
 
+## Submission summary
+
+- **PayPal:** Webhooks (signature-verified), Orders v2, Payments v2, Transaction Search, Disputes v1, Payouts v1, Invoicing v2, and PayPal's official MCP server as the agent's tool layer.
+- **AI:** LangGraph multi-step agent (triage → specialist → structured proposal) with any tool-calling LLM via LangChain; Claude Sonnet by default, deterministic stub for reproducible demos.
+- **Deployed on:** Render (web + worker + Postgres via Blueprint).
+
 ## The problem
 
 Merchants learn about money problems late and from the wrong place: a capture that never
@@ -26,8 +32,9 @@ API — but nobody is joining it, and nobody is acting on it at 2 a.m.
 3. **Reconciles** with twelve rules that emit typed *breaks*: `expected`, `observed`,
    `delta`, severity. A break that stops firing resolves itself.
 4. **Investigates** each break with a LangGraph agent — triage, then a specialist
-   (dispute defender, refund advisor, drift explainer) that uses read-only PayPal and
-   ledger tools and must return a structured proposal, never prose.
+   (dispute defender, refund advisor, drift explainer) that uses PayPal's official MCP
+   server (`@paypal/mcp`, read-only tools) plus ledger tools, and must return a
+   structured proposal, never prose.
 5. **Gates** the proposal with a versioned YAML policy: a $14 refund on a fresh order runs
    itself; anything touching a dispute, or above threshold, pauses the graph for a human.
 6. **Executes** through one audited path with idempotency keys derived from the approval,
@@ -48,6 +55,7 @@ Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | Customer Disputes v1 | dispute polling, `provide-evidence`, `send-message` |
 | Payouts v1 | creator-split payouts; failed-item and fee-variance rules |
 | Invoicing v2 | invoice creation/sending; paid-without-payment rule |
+| PayPal MCP server (`@paypal/mcp`) | the agent's PayPal tool source: get_order, get_dispute, list_disputes, get_invoice, list_transactions, get_shipment_tracking |
 
 ## Run the demo in five minutes (no PayPal or LLM keys needed)
 
@@ -60,8 +68,8 @@ git clone https://github.com/demonjd2026-afk/ledgerline && cd ledgerline
 docker run -d --name ledgerline-db -p 5432:5432 \
   -e POSTGRES_USER=ledgerline -e POSTGRES_PASSWORD=ledgerline -e POSTGRES_DB=ledgerline postgres:16-alpine
 
-# 2. backend
-cd backend && cp .env.example .env && pip install -e ".[dev]" && ledgerline migrate
+# 2. backend (npm ci installs PayPal's MCP server, which the agent runs as a subprocess)
+cd backend && cp .env.example .env && pip install -e ".[dev]" && npm ci && ledgerline migrate
 
 # 3. console
 cd ../frontend && npm ci && npm run build && cd ../backend
@@ -131,7 +139,7 @@ backend/app
   ingest/      webhook receiver, pipeline, Transaction Search / Disputes poller
   ledger/      append-only store, deterministic projections, rebuild
   recon/       twelve rules → breaks
-  agents/      LangGraph graph, tools, policy gate, executor, stub LLM
+  agents/      LangGraph graph, PayPal MCP + ledger tools, policy gate, executor, stub LLM
   worker/      Postgres SKIP LOCKED job queue + worker loop
   sim/         sandbox seeder, fault injection, fixture replay
   api/         operator API

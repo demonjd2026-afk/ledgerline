@@ -49,6 +49,13 @@ class GraphDeps:
         self.agent_run_id = agent_run_id
         self.llm = get_llm()
         self.tools = build_tools(session, paypal)
+        self.mcp_tool_names: list[str] = []
+        if paypal is not None:
+            from app.agents.paypal_mcp import load_paypal_mcp_tools
+
+            mcp_tools = load_paypal_mcp_tools(paypal)
+            self.mcp_tool_names = [t.name for t in mcp_tools]
+            self.tools = mcp_tools + self.tools
         self.tools_by_name = {t.name: t for t in self.tools}
 
 
@@ -76,7 +83,10 @@ def build_graph(deps: GraphDeps, checkpointer):
         b = deps.session.get(Break, state["break_id"])
         if b is None:
             raise RuntimeError(f"break {state['break_id']} not found")
-        return {"break_json": _break_json(b), "trace": [{"node": "load_context", "break": b.fingerprint}]}
+        return {
+            "break_json": _break_json(b),
+            "trace": [{"node": "load_context", "break": b.fingerprint, "paypal_mcp_tools": deps.mcp_tool_names, "native_tools": [t.name for t in deps.tools if t.name not in deps.mcp_tool_names]}],
+        }
 
     def triage(state: AgentState) -> AgentState:
         msgs = [SystemMessage(prompts.SYSTEM), HumanMessage(prompts.TRIAGE.format(break_json=json.dumps(state["break_json"], default=str)))]

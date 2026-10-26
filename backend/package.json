@@ -1,0 +1,8 @@
+{
+  "name": "ledgerline-backend-tools",
+  "private": true,
+  "description": "Node-side dependency: PayPal's official MCP server, used by the agent as a read-only tool source.",
+  "dependencies": {
+    "@paypal/mcp": "^1.8.1"
+  }
+}

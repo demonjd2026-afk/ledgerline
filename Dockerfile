@@ -1,4 +1,5 @@
-# Multi-stage: build the console, then a slim Python image that serves API + console and runs the worker.
+# Multi-stage: build the console, then a slim Python+Node image that serves API + console and runs the worker.
+# Node is in the runtime image because the agent runs PayPal's official MCP server (@paypal/mcp) as a subprocess.
 FROM node:22-alpine AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
@@ -8,7 +9,10 @@ RUN npm run build
 
 FROM python:3.12-slim AS app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/backend
+COPY backend/package.json backend/package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
 COPY backend/pyproject.toml ./
 COPY backend/app ./app
 COPY backend/alembic ./alembic

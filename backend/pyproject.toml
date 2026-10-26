@@ -23,6 +23,7 @@ dependencies = [
     "langchain-openai>=0.3.0",
     "tenacity>=8.5",
     "prometheus-client>=0.20",
+    "langchain-mcp-adapters>=0.1",
 ]
 
 [project.optional-dependencies]
