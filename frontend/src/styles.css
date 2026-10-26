@@ -283,7 +283,18 @@ textarea.note:focus { border-color: var(--accent); outline: none; box-shadow: 0 
 .trace pre { margin: 6px 0 0; font-size: 12px; white-space: pre-wrap; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--rule); padding: 8px 10px; border-radius: var(--radius); max-height: 220px; overflow: auto; }
 
 /* ---------------------------------------------------------------- AG Grid (theme params live in lib/gridTheme.ts) */
-.grid { box-shadow: var(--shadow); border-radius: 8px; }
+.grid { box-shadow: var(--shadow); border-radius: 8px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--rule); overflow: hidden; }
+.grid > .ag-root-wrapper, .grid .ag-root-wrapper { border: 0 !important; border-radius: 0 !important; flex: 1; min-height: 0; }
+.grid-toolbar { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-bottom: 1px solid var(--rule); background: var(--surface); font-size: 12.5px; }
+.grid-toolbar .search { display: flex; align-items: center; gap: 6px; border: 1px solid var(--rule-2); border-radius: var(--radius); padding: 4px 8px; background: var(--surface); color: var(--ink-3); min-width: 260px; }
+.grid-toolbar .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.grid-toolbar input { border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; flex: 1; }
+.grid-toolbar .clear { border: 0; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; }
+.grid-toolbar .btn.sm { margin-left: auto; padding: 4px 10px; font-size: 12.5px; line-height: 18px; }
+.sevcell { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; text-transform: capitalize; }
+.sevcell .dot { margin: 0; } .sevcell.critical { color: var(--red); } .sevcell.critical .dot { background: var(--red); box-shadow: 0 0 0 3px var(--red-soft); }
+.sevcell.warn { color: var(--amber); } .sevcell.warn .dot { background: var(--amber); } .sevcell.info { color: var(--ink-3); }
+.grid .ag-cell .pill { vertical-align: middle; }
 .grid .ag-cell { font-feature-settings: "tnum" 1; }
 .cell-red { color: var(--red); font-weight: 600; } .cell-green { color: var(--green); font-weight: 600; }
 .cell-amber { color: var(--amber); font-weight: 600; } .cell-muted { color: var(--ink-3); } .cell-mono { font-family: var(--mono); font-size: 12px; }

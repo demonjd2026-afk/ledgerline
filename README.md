@@ -155,6 +155,16 @@ Every approval row records the policy version and the reasons that decided it.
   closes with an `escalate` proposal rather than a crash or a silent no-op.
 - **Accounted for.** Input/output tokens are recorded per run and shown in the console.
 
+## Hackathon sponsor tools
+
+- **AG Grid** — every table in the console: the Theming API (light and dark params, gridlines,
+  custom header/row tokens), custom cell renderers for severity and state, quick filter, CSV export.
+- **Render** — `render.yaml` Blueprint: web + worker + managed Postgres, Docker build, pre-deploy
+  migrations, generated operator token, fixture seeding on first boot.
+- **PayPal MCP server** — `@paypal/mcp` is the agent's PayPal tool source, per docs.paypal.ai.
+
+Submission text lives in [`docs/SUBMISSION.md`](docs/SUBMISSION.md); the video script in [`docs/DEMO.md`](docs/DEMO.md).
+
 ## Project layout
 
 ```

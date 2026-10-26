@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
 import { gridTheme } from "../lib/gridTheme";
+import { GridToolbar, PillRenderer } from "../components/grid";
 import type { ColDef } from "ag-grid-community";
 import { AgentRun, api, ACTION_LABEL, RULE_LABEL, ago } from "../lib/api";
 import { Trace } from "../components/Trace";
@@ -11,6 +12,7 @@ export default function Runs() {
   const { id } = useParams();
   const nav = useNavigate();
   const runs = useQuery({ queryKey: ["runs"], queryFn: api.runs });
+  const gridRef = useRef<AgGridReact<AgentRun>>(null);
   const one = useQuery({ queryKey: ["run", id], queryFn: () => api.run(Number(id)), enabled: !!id });
 
   const cols = useMemo<ColDef<AgentRun>[]>(
@@ -18,7 +20,7 @@ export default function Runs() {
       { field: "id", headerName: "#", width: 70 },
       { field: "specialist", headerName: "Specialist", width: 150, valueFormatter: (p) => (p.value ? String(p.value).replace(/_/g, " ") : "—") },
       { headerName: "Proposed", flex: 1, valueGetter: (p) => p.data?.proposal?.action, valueFormatter: (p) => ACTION_LABEL[p.value] ?? p.value ?? "—" },
-      { field: "status", headerName: "Status", width: 150, valueFormatter: (p) => String(p.value).replace(/_/g, " "), cellClass: (p) => (p.value === "executed" ? "cell-green" : p.value === "failed" ? "cell-red" : p.value === "awaiting_approval" ? "cell-amber" : "") },
+      { field: "status", headerName: "Status", width: 160, cellRenderer: PillRenderer },
       { headerName: "Tool calls", width: 100, type: "rightAligned", valueGetter: (p) => (p.data?.trace ?? []).filter((t: any) => t.tool).length },
       { headerName: "Tokens", width: 110, type: "rightAligned", cellClass: "cell-muted", valueGetter: (p) => (p.data?.input_tokens ?? 0) + (p.data?.output_tokens ?? 0), valueFormatter: (p) => (p.value ? Number(p.value).toLocaleString() : "—") },
       { field: "model", headerName: "Model", width: 200, cellClass: "cell-muted" },
@@ -33,7 +35,9 @@ export default function Runs() {
       <p className="lede">Every run is a checkpointed graph: load the chain, triage, investigate with read-only tools, propose one action, pass the policy gate. Nothing in a run can move money on its own.</p>
       <div className="two">
         <div className="grid" style={{ height: "calc(100vh - 220px)", minHeight: 400 }}>
+          <GridToolbar gridRef={gridRef as any} count={runs.data?.length ?? 0} name="runs" />
           <AgGridReact<AgentRun>
+            ref={gridRef}
             theme={gridTheme}
             rowData={runs.data ?? []}
             columnDefs={cols}

@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
 import { gridTheme } from "../lib/gridTheme";
+import { GridToolbar, PillRenderer } from "../components/grid";
 import type { ColDef } from "ag-grid-community";
 import { api } from "../lib/api";
 
@@ -21,6 +22,7 @@ function colsFor(rows: Record<string, any>[]): ColDef[] {
     flex: WIDTHS[k] ? undefined : 1,
     minWidth: 90,
     filter: true,
+    cellRenderer: k === "status" || k === "api_status" ? PillRenderer : undefined,
     cellClass: (p) =>
       k === "api_status" && p.data?.api_status && p.data.api_status !== p.data.status
         ? "cell-red"
@@ -38,6 +40,7 @@ export default function Ledger() {
   const [tab, setTab] = useState<Tab>("events");
   const { data = [] } = useQuery({ queryKey: ["ledger", tab], queryFn: () => (tab === "events" ? api.events("?limit=1000") : api.ledger(tab)) });
   const cols = useMemo(() => colsFor(data), [data]);
+  const gridRef = useRef<AgGridReact>(null);
 
   return (
     <>
@@ -55,8 +58,10 @@ export default function Ledger() {
       {data.length === 0 ? (
         <div className="empty">No {tab} yet.</div>
       ) : (
-        <div className="grid" style={{ height: "calc(100vh - 230px)", minHeight: 420 }}>
+        <div className="grid" style={{ height: "calc(100vh - 270px)", minHeight: 420 }}>
+          <GridToolbar gridRef={gridRef} count={data.length} name={tab} />
           <AgGridReact
+            ref={gridRef}
             theme={gridTheme} rowData={data} columnDefs={cols} defaultColDef={{ sortable: true, resizable: true }} getRowId={(p) => String(p.data.id)} suppressCellFocus pagination paginationPageSize={100} />
         </div>
       )}
