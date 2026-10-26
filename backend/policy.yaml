@@ -31,3 +31,6 @@ payer_blocklist: []
 
 # Hard ceiling: the agent may never propose a refund above this even for human approval.
 max_refund_minor: 100000              # $1,000.00
+
+# Below this stated confidence nothing runs unattended, whatever the amount.
+min_confidence_for_auto: 0.8

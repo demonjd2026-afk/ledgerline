@@ -37,6 +37,10 @@ def evaluate(session: Session, action: str, proposal: dict[str, Any], rule: str)
     if action in (pol.get("never_auto") or []):
         return PolicyDecision("requires_human", version, [f"{action} is in never_auto"])
 
+    floor = float(pol.get("min_confidence_for_auto", 0) or 0)
+    conf = float(proposal.get("confidence") or 0)
+    low_confidence = conf < floor
+
     if action == "refund":
         amount = int(proposal.get("amount_minor") or 0)
         if amount <= 0:
@@ -67,11 +71,15 @@ def evaluate(session: Session, action: str, proposal: dict[str, Any], rule: str)
             prior = session.execute(select(Refund).where(Refund.capture_id == proposal["capture_id"])).first()
             if prior:
                 reasons.append("prior_refund_on_capture")
+        if low_confidence:
+            reasons.append(f"confidence {conf:.0%} below auto floor {floor:.0%}")
         return PolicyDecision("requires_human" if reasons else "auto", version, reasons or ["within auto-approve limits"])
 
     if action in ("ledger_correction", "no_action"):
         cfg = (pol.get("auto_approve") or {}).get(action) or {}
         if rule in (cfg.get("allowed_rules") or []):
+            if low_confidence:
+                return PolicyDecision("requires_human", version, [f"confidence {conf:.0%} below auto floor {floor:.0%}"])
             return PolicyDecision("auto", version, [f"{rule} allowed for {action}"])
         return PolicyDecision("requires_human", version, [f"{rule} not in allowed_rules for {action}"])
 

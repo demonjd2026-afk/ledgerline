@@ -44,6 +44,8 @@ export type AgentRun = {
   status: string;
   specialist: string | null;
   model: string | null;
+  input_tokens?: number;
+  output_tokens?: number;
   trace: Array<Record<string, any>>;
   proposal: Record<string, any> | null;
   outcome: Record<string, any> | null;

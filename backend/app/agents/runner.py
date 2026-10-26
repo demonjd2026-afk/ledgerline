@@ -143,6 +143,9 @@ def _sync_trace(session: Session, run: AgentRun, graph, config, final: dict | No
     snapshot = graph.get_state(config)
     values = snapshot.values or final or {}
     run.trace = as_jsonable(values.get("trace") or [])
+    u = values.get("usage") or {}
+    run.input_tokens = int(u.get("input_tokens") or 0)
+    run.output_tokens = int(u.get("output_tokens") or 0)
     if values.get("proposal"):
         run.proposal = as_jsonable(values["proposal"])
     if values.get("triage"):

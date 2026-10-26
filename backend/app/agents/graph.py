@@ -14,12 +14,13 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from langgraph.graph import END, StateGraph
 from langgraph.types import Command, interrupt
 from sqlalchemy.orm import Session
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.agents import prompts
 from app.agents.llm import get_llm
 from app.agents.policy import evaluate
 from app.agents.schemas import Proposal, Triage
-from app.agents.tools import build_tools
+from app.agents.tools import build_tools, fence_untrusted
 from app.config import get_settings
 from app.domain.models import Break
 from app.logging import get_logger
@@ -29,6 +30,7 @@ log = get_logger("agent.graph")
 
 
 class AgentState(TypedDict, total=False):
+    usage: dict  # {"input_tokens": n, "output_tokens": n, "llm_calls": n}
     break_id: int
     break_json: dict
     triage: dict
@@ -76,6 +78,46 @@ def _break_json(b: Break) -> dict:
     }
 
 
+class LLMCallFailed(RuntimeError):
+    pass
+
+
+def _usage_of(msg: Any) -> dict:
+    u = getattr(msg, "usage_metadata", None) or {}
+    return {"input_tokens": int(u.get("input_tokens") or 0), "output_tokens": int(u.get("output_tokens") or 0), "llm_calls": 1}
+
+
+def _add_usage(state: AgentState, *parts: dict) -> dict:
+    tot = dict(state.get("usage") or {"input_tokens": 0, "output_tokens": 0, "llm_calls": 0})
+    for p in parts:
+        for k in tot:
+            tot[k] += int(p.get(k) or 0)
+    return tot
+
+
+@retry(retry=retry_if_exception_type(LLMCallFailed), wait=wait_exponential(multiplier=1, max=8), stop=stop_after_attempt(3), reraise=True)
+def _structured(llm, schema, msgs):
+    """Structured call with usage. Transport/5xx/parse errors retry; the final failure propagates."""
+    try:
+        out = llm.with_structured_output(schema, include_raw=True).invoke(msgs)
+    except Exception as exc:  # noqa: BLE001 - provider errors are heterogeneous
+        raise LLMCallFailed(str(exc)) from exc
+    if isinstance(out, dict):
+        parsed, raw = out.get("parsed"), out.get("raw")
+        if parsed is None:
+            raise LLMCallFailed(f"model returned no {schema.__name__}: {out.get('parsing_error')}")
+        return parsed, _usage_of(raw)
+    return out, {"input_tokens": 0, "output_tokens": 0, "llm_calls": 1}
+
+
+@retry(retry=retry_if_exception_type(LLMCallFailed), wait=wait_exponential(multiplier=1, max=8), stop=stop_after_attempt(3), reraise=True)
+def _invoke(llm, msgs):
+    try:
+        return llm.invoke(msgs)
+    except Exception as exc:  # noqa: BLE001
+        raise LLMCallFailed(str(exc)) from exc
+
+
 def build_graph(deps: GraphDeps, checkpointer):
     s = get_settings()
 
@@ -90,8 +132,8 @@ def build_graph(deps: GraphDeps, checkpointer):
 
     def triage(state: AgentState) -> AgentState:
         msgs = [SystemMessage(prompts.SYSTEM), HumanMessage(prompts.TRIAGE.format(break_json=json.dumps(state["break_json"], default=str)))]
-        out: Triage = deps.llm.with_structured_output(Triage).invoke(msgs)
-        return {"triage": out.model_dump(), "trace": state["trace"] + [{"node": "triage", **out.model_dump()}]}
+        out, usage = _structured(deps.llm, Triage, msgs)
+        return {"triage": out.model_dump(), "usage": _add_usage(state, usage), "trace": state["trace"] + [{"node": "triage", **out.model_dump()}]}
 
     def specialist(state: AgentState) -> AgentState:
         spec = state["triage"]["specialist"]
@@ -107,10 +149,12 @@ def build_graph(deps: GraphDeps, checkpointer):
             ),
         ]
         trace = list(state["trace"])
+        usage = dict(state.get("usage") or {})
         llm_tools = deps.llm.bind_tools(deps.tools)
         calls = 0
         while calls < s.agent_max_tool_calls:
-            ai: AIMessage = llm_tools.invoke(msgs)
+            ai: AIMessage = _invoke(llm_tools, msgs)
+            usage = _add_usage({"usage": usage}, _usage_of(ai))
             msgs.append(ai)
             tool_calls = getattr(ai, "tool_calls", None) or []
             if not tool_calls:
@@ -122,13 +166,26 @@ def build_graph(deps: GraphDeps, checkpointer):
                     result = tool.invoke(tc["args"]) if tool else json.dumps({"error": f"unknown tool {tc['name']}"})
                 except Exception as exc:  # noqa: BLE001
                     result = json.dumps({"error": str(exc)})
+                result = fence_untrusted(result)
                 trace.append({"node": spec, "tool": tc["name"], "args": tc["args"], "result_preview": str(result)[:600]})
                 msgs.append(ToolMessage(content=str(result), tool_call_id=tc["id"]))
-        proposal: Proposal = deps.llm.with_structured_output(Proposal).invoke(
-            msgs + [HumanMessage("Now produce the Proposal.")]
-        )
-        trace.append({"node": spec, "proposal": proposal.model_dump()})
-        return {"proposal": proposal.model_dump(), "trace": trace}
+        try:
+            proposal, pu = _structured(deps.llm, Proposal, msgs + [HumanMessage("Now produce the Proposal.")])
+        except LLMCallFailed as exc:
+            # The model could not produce a valid proposal after retries: never fail the break, escalate it.
+            proposal = Proposal(
+                action="escalate",
+                headline="The agent could not reach a valid proposal; a person should review this break.",
+                rationale=f"Model error after retries: {str(exc)[:300]}",
+                confidence=0.0,
+                order_id=state["break_json"].get("correlation_id"),
+                escalation_summary="Automated analysis failed; review the evidence and order chain manually.",
+            )
+            pu = {"input_tokens": 0, "output_tokens": 0, "llm_calls": 0}
+            trace.append({"node": spec, "error": str(exc)[:300]})
+        usage = _add_usage({"usage": usage}, pu)
+        trace.append({"node": spec, "proposal": proposal.model_dump(), "tool_calls": calls})
+        return {"proposal": proposal.model_dump(), "usage": usage, "trace": trace}
 
     def policy_gate(state: AgentState) -> AgentState:
         from app.agents.runner import record_approval

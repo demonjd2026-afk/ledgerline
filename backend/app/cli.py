@@ -125,6 +125,69 @@ def reset(yes: bool = typer.Option(False, "--yes", help="Skip confirmation")):
     typer.echo("reset done")
 
 
+@app.command("eval")
+def eval_agent(
+    fixture: Path = typer.Argument(None, help="JSONL fixture (default: bundled demo)"),
+    expected: Path = typer.Option(None, help="Expected-behaviour JSON (default: <fixture>.expected.json)"),
+):
+    """Regression-test the agent: replay the fixture, run every break through the configured model,
+    score each proposal against the expected action and target. Exit 1 on any miss."""
+    import os
+
+    from sqlalchemy import select
+
+    from app.agents.runner import ensure_checkpointer
+    from app.domain.models import AgentRun, Break
+    from app.sim.replay import FIXTURES, replay_file
+    from app.worker.main import _handlers, run_once
+
+    os.environ.setdefault("PAYPAL_DRY_RUN", "true")
+    get_settings.cache_clear()
+    path = fixture or FIXTURES / "demo.jsonl"
+    exp_path = expected or path.with_suffix(".expected.json")
+    exp = json.loads(exp_path.read_text())
+    ensure_checkpointer()
+    with _session() as s:
+        from sqlalchemy import text
+
+        s.execute(text("TRUNCATE ledger_events, orders, captures, refunds, authorizations, payout_items, disputes, invoices, transactions, breaks, agent_runs, approvals, jobs, webhook_inbox RESTART IDENTITY"))
+        for t in ("checkpoints", "checkpoint_writes", "checkpoint_blobs"):
+            s.execute(text(f"TRUNCATE {t}"))
+        replay_file(s, path)
+    handlers = _handlers()
+    for _ in range(50):
+        if run_once(handlers, None) == 0:
+            break
+
+    rows, misses, tokens = [], 0, 0
+    with _session() as s:
+        for b in s.execute(select(Break).order_by(Break.id)).scalars():
+            spec = exp.get(b.rule)
+            run = s.execute(select(AgentRun).where(AgentRun.break_id == b.id).order_by(AgentRun.id.desc())).scalars().first()
+            if spec is None or run is None or not run.proposal:
+                continue
+            tokens += (run.input_tokens or 0) + (run.output_tokens or 0)
+            p = run.proposal
+            ok = p["action"] in spec["actions"]
+            why = []
+            if not ok:
+                why.append(f"action {p['action']} not in {spec['actions']}")
+            for k, v in (spec.get("target") or {}).items():
+                if p.get(k) != v:
+                    ok = False
+                    why.append(f"{k}={p.get(k)!r} expected {v!r}")
+            if spec.get("amount_minor") is not None and p.get("amount_minor") != spec["amount_minor"]:
+                ok = False
+                why.append(f"amount {p.get('amount_minor')} expected {spec['amount_minor']}")
+            misses += 0 if ok else 1
+            rows.append((b.rule, p["action"], f"{p.get('confidence', 0):.0%}", "pass" if ok else "FAIL: " + "; ".join(why)))
+    typer.echo(f"\nmodel: {get_settings().llm_model}   tokens: {tokens}\n")
+    for r in rows:
+        typer.echo(f"  {r[0]:26} {r[1]:18} {r[2]:>5}  {r[3]}")
+    typer.echo(f"\n{len(rows) - misses}/{len(rows)} passed")
+    raise typer.Exit(1 if misses else 0)
+
+
 # ---------------------------------------------------------------- sim
 
 

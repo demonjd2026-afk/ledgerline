@@ -23,12 +23,15 @@ class StubChatModel(BaseChatModel):
     def bind_tools(self, tools, **kwargs):
         return self
 
-    def with_structured_output(self, schema, **kwargs):
+    def with_structured_output(self, schema, include_raw: bool = False, **kwargs):
         model = self
 
         class _Runner:
             def invoke(self, messages, **kw):
-                return model._structured(schema, messages)
+                parsed = model._structured(schema, messages)
+                if include_raw:
+                    return {"raw": AIMessage(content="stub", usage_metadata={"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}), "parsed": parsed, "parsing_error": None}
+                return parsed
 
         return _Runner()
 
@@ -93,13 +96,23 @@ def _stub_proposal(brk: dict):
             currency=cur,
             note_to_payer="You were charged twice for the same order; this refunds the duplicate charge.",
         )
-    if rule in ("ORDER_AMOUNT_MISMATCH", "DUPLICATE_CAPTURE") and delta > 0:
+    if rule == "DUPLICATE_CAPTURE":
+        caps = obs.get("captures") or []
+        return Proposal(
+            action="escalate",
+            headline=f"Order {rid} shows {obs.get('final_captures')} final captures; verify which exist at PayPal before correcting.",
+            rationale=f"Captures {', '.join(caps)} are recorded against one order. Without the PayPal view this stub cannot tell a replayed webhook from a real double charge; a person (or the live agent) should confirm and then correct the ledger or refund.",
+            confidence=0.6,
+            order_id=rid,
+            escalation_summary="Check each capture id at PayPal; delete the phantom from the ledger, or refund if both are real.",
+        )
+    if rule == "ORDER_AMOUNT_MISMATCH" and delta > 0:
         caps = obs.get("captures") or []
         return Proposal(
             action="refund",
             headline=f"Refund the {delta/100:.2f} {cur} over-charge on order {corr or rid}.",
             rationale=f"Ledger shows {obs.get('captured_total') or obs.get('final_captures')} captured against order amount {exp.get('order_amount','?')}. Customer was over-charged by the delta; refund exactly that amount from the last capture.",
-            confidence=0.7,
+            confidence=0.85,
             capture_id=caps[-1] if caps else None,
             order_id=corr or rid,
             amount_minor=delta,

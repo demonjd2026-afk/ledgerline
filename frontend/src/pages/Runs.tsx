@@ -19,6 +19,7 @@ export default function Runs() {
       { headerName: "Proposed", flex: 1, valueGetter: (p) => p.data?.proposal?.action, valueFormatter: (p) => ACTION_LABEL[p.value] ?? p.value ?? "—" },
       { field: "status", headerName: "Status", width: 150, valueFormatter: (p) => String(p.value).replace(/_/g, " "), cellClass: (p) => (p.value === "executed" ? "cell-green" : p.value === "failed" ? "cell-red" : p.value === "awaiting_approval" ? "cell-amber" : "") },
       { headerName: "Tool calls", width: 100, type: "rightAligned", valueGetter: (p) => (p.data?.trace ?? []).filter((t: any) => t.tool).length },
+      { headerName: "Tokens", width: 110, type: "rightAligned", cellClass: "cell-muted", valueGetter: (p) => (p.data?.input_tokens ?? 0) + (p.data?.output_tokens ?? 0), valueFormatter: (p) => (p.value ? Number(p.value).toLocaleString() : "—") },
       { field: "model", headerName: "Model", width: 200, cellClass: "cell-muted" },
       { field: "started_at", headerName: "Started", width: 150, valueFormatter: (p) => ago(p.value), sort: "desc" },
     ],
