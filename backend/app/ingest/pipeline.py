@@ -98,7 +98,12 @@ def fetch_capture(session: Session, capture_id: str, paypal: PayPalClient) -> bo
     ev = LedgerEvent(
         event_key=LedgerEvent.key("api", capture_id, f"CAPTURE_SNAPSHOT_{cap.get('status')}_{cap.get('update_time','')}"),
         source="api",
-        event_type=EventType.CAPTURE_COMPLETED if cap.get("status") == "COMPLETED" else EventType.CAPTURE_PENDING,
+        event_type={
+            "COMPLETED": EventType.CAPTURE_COMPLETED,
+            "REFUNDED": EventType.CAPTURE_REFUNDED,
+            "PARTIALLY_REFUNDED": EventType.CAPTURE_REFUNDED,
+            "DECLINED": EventType.CAPTURE_DENIED,
+        }.get(cap.get("status"), EventType.CAPTURE_PENDING),
         resource_type=ResourceType.CAPTURE,
         resource_id=capture_id,
         occurred_at=parse_ts(cap.get("update_time") or cap.get("create_time")),

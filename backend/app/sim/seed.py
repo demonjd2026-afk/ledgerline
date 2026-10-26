@@ -17,6 +17,8 @@ from app.domain.money import Money, to_decimal_str
 from app.ingest.pipeline import fetch_capture, ingest_event
 from app.logging import get_logger
 from app.paypal.client import PayPalClient, PayPalError
+from app.recon.engine import reconcile
+from app.worker import queue
 
 log = get_logger("sim.seed")
 
@@ -163,15 +165,16 @@ def inject(session: Session, pp: PayPalClient, order_ids: list[str]) -> dict:
     cap1 = _capture_id(session, o1)
     pp.refund_capture(cap1, None, "Full refund issued from PayPal dashboard", request_id=_rid())
     fetch_capture(session, cap1, pp)  # the poller/enricher would do this; we do it now
+    _dispatch(session, reconcile(session, o1))
     results["silent_refund"] = {"order": o1, "capture": cap1}
 
     # 2. Duplicate refund webhook: PayPal refunded once, our ledger recorded it twice -> REFUND_EXCEEDS_CAPTURE.
     o2 = order_ids[1]
     cap2 = _capture_id(session, o2)
-    ref = pp.refund_capture(cap2, {"currency_code": "USD", "value": "10.00"}, "Partial refund", request_id=_rid())
+    ref = pp.refund_capture(cap2, None, "Full refund", request_id=_rid())  # full refund, once, at PayPal
     _record_refund(session, ref, cap2, o2)
-    dup = {**ref, "id": ref["id"] + "-DUP"}  # a redelivered webhook that PayPal reassigned an id to; it happens
-    _record_refund(session, dup, cap2, o2)
+    dup = {**ref, "id": ref["id"] + "-DUP"}  # the same refund recorded a second time under another id
+    _record_refund(session, dup, cap2, o2)  # ledger now believes 2x the capture was refunded
     results["duplicate_refund_record"] = {"order": o2, "capture": cap2, "refund": ref["id"]}
 
     # 3. Over-capture: ledger believes a second capture happened (replayed webhook) -> DUPLICATE_CAPTURE.
@@ -199,6 +202,12 @@ def inject(session: Session, pp: PayPalClient, order_ids: list[str]) -> dict:
 
 
 # ---------------------------------------------------------------- helpers
+
+
+def _dispatch(session: Session, breaks) -> None:
+    for b in breaks:
+        if b.severity in ("critical", "warn"):
+            queue.enqueue(session, "run_agent", dedupe_key=f"break:{b.id}", payload={"break_id": b.id})
 
 
 def _first_capture(order: dict) -> dict | None:

@@ -31,6 +31,9 @@ def _handlers() -> dict[str, Callable]:
             return
         poll_transactions(session, paypal)
         poll_disputes(session, paypal)
+        for b in reconcile_all(session):
+            if b.severity in ("critical", "warn"):
+                queue.enqueue(session, "run_agent", dedupe_key=f"break:{b.id}", payload={"break_id": b.id})
 
     def _recon_all(session, payload, paypal):
         reconcile_all(session)
