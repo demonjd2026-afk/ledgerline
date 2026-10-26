@@ -130,8 +130,9 @@ def _capture_from(session: Session, ev: LedgerEventRow, cap: dict, order_id: str
 def _capture(session: Session, ev: LedgerEventRow) -> None:
     p = ev.payload
     order_id = ev.correlation_id
-    if ev.event_type == EventType.CAPTURE_REFUNDED and p.get("id") and p.get("amount"):
-        # PAYMENT.CAPTURE.REFUNDED carries the *refund* resource, not the capture.
+    if ev.event_type == EventType.CAPTURE_REFUNDED and ev.source == "webhook" and p.get("id") and p.get("amount"):
+        # The PAYMENT.CAPTURE.REFUNDED webhook carries the *refund* resource, not the capture.
+        # An API/poll snapshot with the same label carries the capture itself (status REFUNDED).
         _refund_from(session, ev, p, order_id=order_id)
         return
     _capture_from(session, ev, p, order_id=order_id)

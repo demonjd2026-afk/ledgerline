@@ -102,6 +102,16 @@ def test_drift_uses_ledger_implied_status(session):
     assert "WEBHOOK_API_DRIFT" not in {b.rule for b in reconcile(session, "O3")}
 
 
+def test_silent_refund_at_paypal_opens_drift(session):
+    """Capture COMPLETED in the ledger; PayPal says REFUNDED and the ledger knows no refund."""
+    _append_order(session, _order("O8", "129.00", [("C8", "129.00")]))
+    snap = {"id": "C8", "status": "REFUNDED", "amount": {"currency_code": "USD", "value": "129.00"}, "supplementary_data": {"related_ids": {"order_id": "O8"}}}
+    store.append(session, LedgerEvent(LedgerEvent.key("api", "C8", "SNAP_REFUNDED"), "api", EventType.CAPTURE_REFUNDED, ResourceType.CAPTURE, "C8", NOW, snap, Money(12900, "USD"), "O8"))
+    assert session.execute(select(Refund)).scalars().all() == []  # the snapshot is not a refund record
+    rules = {b.rule for b in reconcile(session, "O8")}
+    assert "WEBHOOK_API_DRIFT" in rules
+
+
 # ---------------------------------------------------------------- agents + policy
 
 
