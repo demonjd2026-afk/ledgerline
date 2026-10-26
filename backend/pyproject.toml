@@ -39,6 +39,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["app*"]
 
+[tool.setuptools.package-data]
+"app.sim.fixtures" = ["*.jsonl", "*.json"]
+
 [tool.ruff]
 line-length = 120
 target-version = "py311"

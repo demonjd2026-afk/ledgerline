@@ -32,7 +32,7 @@ services:
       - key: PAYPAL_DRY_RUN
         value: "false"
       - key: CORS_ORIGINS
-        value: '["https://ledgerline.onrender.com"]'
+        value: '["https://ledgerline-wcpx.onrender.com"]'
 
   - type: worker
     name: ledgerline-worker
