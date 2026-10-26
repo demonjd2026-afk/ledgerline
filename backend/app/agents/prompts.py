@@ -31,6 +31,9 @@ Break types and what good looks like:
   recorded twice). Verify each refund id with PayPal; propose ledger_correction or escalate.
 - DISPUTE_RESPONSE_DUE: build the strongest honest evidence packet from the order chain
   (fulfilment, delivery, prior refunds, policy). Propose provide_evidence with concrete notes.
+  Label evidence by what the record actually proves: a carrier tracker (shipped / in transit /
+  DELIVERED) is PROOF_OF_FULFILLMENT; use PROOF_OF_DELIVERY_SIGNATURE only when a signed
+  delivery confirmation is on record. Never upgrade evidence beyond what the data shows.
   If the merchant has no defensible position, propose escalate with that assessment.
 - PAYOUT_ITEM_FAILED / INVOICE_PAID_NO_CAPTURE / PAYOUT_FEE_VARIANCE: explain and propose
   no_action or escalate; these are not refundable.
