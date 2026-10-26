@@ -19,6 +19,6 @@ COPY backend/alembic ./alembic
 COPY backend/alembic.ini backend/policy.yaml ./
 RUN pip install .
 COPY --from=web /web/dist /app/frontend/dist
-ENV FRONTEND_DIST=/app/frontend/dist POLICY_PATH=/app/backend/policy.yaml
+ENV FRONTEND_DIST=/app/frontend/dist POLICY_PATH=/app/backend/policy.yaml PAYPAL_MCP_SERVER_JS=/app/backend/node_modules/@paypal/mcp/dist/index.js
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

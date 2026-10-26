@@ -55,6 +55,34 @@ def _row(obj: Any) -> dict:
     return {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in d.items()}
 
 
+def _fulfilment(session: Session, order_id: str) -> dict | None:
+    """Shipping address and carrier trackers for an order, taken from the latest order payload the ledger
+    holds (Orders v2 ``purchase_units[].shipping``; trackers come from PayPal's Add Tracking API). This is
+    the merchant's own fulfilment record, so it is the evidence a dispute defence can honestly cite."""
+    events = store.events_for_resource(session, "order", order_id)
+    for ev in reversed(events):
+        payload = ev.payload if isinstance(ev.payload, dict) else {}
+        for unit in payload.get("purchase_units") or []:
+            shipping = unit.get("shipping")
+            if shipping:
+                return {
+                    "name": (shipping.get("name") or {}).get("full_name"),
+                    "address": shipping.get("address"),
+                    "trackers": [
+                        {
+                            "id": t.get("id"),
+                            "carrier": t.get("carrier"),
+                            "tracking_number": t.get("tracking_number"),
+                            "status": t.get("status"),
+                            "shipped_at": t.get("create_time"),
+                            "last_update": t.get("update_time"),
+                        }
+                        for t in shipping.get("trackers") or []
+                    ],
+                }
+    return None
+
+
 def build_tools(session: Session, paypal: PayPalClient | None) -> list:
     @tool
     def ledger_order_chain(order_id: str) -> str:
@@ -68,6 +96,7 @@ def build_tools(session: Session, paypal: PayPalClient | None) -> list:
         return json.dumps(
             {
                 "order": _row(order) if order else None,
+                "fulfilment": _fulfilment(session, order_id),
                 "captures": [_row(c) for c in caps],
                 "refunds": [_row(r) for r in refs],
                 "disputes": [_row(d) for d in disputes],

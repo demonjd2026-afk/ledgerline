@@ -23,7 +23,22 @@ from app.paypal.client import PayPalClient
 log = get_logger("agent.paypal_mcp")
 
 READ_ONLY_TOOLS = "orders.get,disputes.get,disputes.list,invoices.get,invoices.list,transactions.list,shipment.get"
-SERVER_JS = Path(__file__).resolve().parents[2] / "node_modules" / "@paypal" / "mcp" / "dist" / "index.js"
+_REL = Path("node_modules") / "@paypal" / "mcp" / "dist" / "index.js"
+
+
+def _server_js() -> Path:
+    """Locate @paypal/mcp: explicit PAYPAL_MCP_SERVER_JS, else next to the source tree (dev), else the
+    working directory (the Docker image installs node_modules in /app/backend and runs from there)."""
+    explicit = os.environ.get("PAYPAL_MCP_SERVER_JS")
+    if explicit:
+        return Path(explicit)
+    for base in (Path(__file__).resolve().parents[2], Path.cwd()):
+        if (base / _REL).exists():
+            return base / _REL
+    return Path(__file__).resolve().parents[2] / _REL
+
+
+SERVER_JS = _server_js()
 
 
 def available() -> bool:
