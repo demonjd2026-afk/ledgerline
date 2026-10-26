@@ -25,8 +25,12 @@ services:
         sync: false
       - key: LLM_MODEL
         value: anthropic:claude-sonnet-4-5
-      - key: ANTHROPIC_API_KEY
+      - key: LLM_API_KEY
         sync: false
+      - key: OPERATOR_TOKEN
+        generateValue: true
+      - key: PAYPAL_DRY_RUN
+        value: "false"
       - key: CORS_ORIGINS
         value: '["https://ledgerline.onrender.com"]'
 
@@ -49,10 +53,16 @@ services:
         sync: false
       - key: PAYPAL_CLIENT_SECRET
         sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
       - key: LLM_MODEL
         value: anthropic:claude-sonnet-4-5
-      - key: ANTHROPIC_API_KEY
+      - key: LLM_API_KEY
         sync: false
+      - key: PAYPAL_DRY_RUN
+        value: "false"
+      - key: DEMO_SEED_ON_START
+        value: "true"
       - key: POLL_INTERVAL_SECONDS
         value: "300"
 

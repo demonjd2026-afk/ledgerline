@@ -70,6 +70,20 @@ def run_once(handlers: dict[str, Callable], paypal: PayPalClient | None) -> int:
     return done
 
 
+def _seed_if_empty() -> None:
+    """Hosted demo: replay the bundled fixture when the ledger has no events, so judges land on real data."""
+    from sqlalchemy import func, select
+
+    from app.domain.models import LedgerEventRow
+    from app.sim.replay import FIXTURES, replay_file
+
+    with session_scope() as session:
+        if session.execute(select(func.count()).select_from(LedgerEventRow)).scalar():
+            return
+        counts = replay_file(session, FIXTURES / "demo.jsonl")
+    log.info("worker.demo_seeded", **counts)
+
+
 def main() -> None:
     configure_logging()
     s = get_settings()
@@ -78,6 +92,8 @@ def main() -> None:
     from app.agents.runner import ensure_checkpointer
 
     ensure_checkpointer()
+    if s.demo_seed_on_start:
+        _seed_if_empty()
 
     def _stop(*_):
         global _running

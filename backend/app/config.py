@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     paypal_webhook_id: str = ""  # from the developer dashboard; required to verify signatures
     allow_live: bool = False  # hard safety: live mutations refuse to run unless explicitly enabled
     paypal_dry_run: bool = False  # executor logs intended PayPal mutations instead of sending them (fixture demos)
+    demo_seed_on_start: bool = False  # worker replays the bundled fixture once if the ledger is empty (hosted demos)
     paypal_mcp_enabled: bool = True  # give agents PayPal's official MCP server (@paypal/mcp) as read-only tools when Node is present
 
     # Agents
