@@ -30,7 +30,7 @@ services:
       - key: OPERATOR_TOKEN
         generateValue: true
       - key: PAYPAL_DRY_RUN
-        value: "false"
+        value: "true"   # hosted demo is fixture-seeded; set "false" only when the ledger holds real sandbox objects
       - key: CORS_ORIGINS
         value: '["https://ledgerline-wcpx.onrender.com"]'
 
@@ -60,7 +60,7 @@ services:
       - key: LLM_API_KEY
         sync: false
       - key: PAYPAL_DRY_RUN
-        value: "false"
+        value: "true"   # hosted demo is fixture-seeded; set "false" only when the ledger holds real sandbox objects
       - key: DEMO_SEED_ON_START
         value: "true"
       - key: POLL_INTERVAL_SECONDS
