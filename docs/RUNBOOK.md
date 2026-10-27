@@ -74,7 +74,7 @@ in memory only; a redeploy picks up the new pair. Re-register the webhook if the
 ### Projections look wrong but the event log is right
 
 ```
-ledgerline rebuild        # drop projections, replay ledger_events, recompute breaks
+ledgerline rebuild        # drop projections, replay ledger_events (then `ledgerline reconcile` to recompute breaks)
 ledgerline reconcile      # re-run every rule without rebuilding
 ```
 

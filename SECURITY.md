@@ -12,8 +12,8 @@ not an afterthought.
   after the deterministic policy gate and, where policy says so, a human decision.
 - **Amounts come from the ledger, never the model.** Refunds are bounded by the capture amount
   and `policy.yaml`'s `max_refund_minor`.
-- **Every mutation is idempotent.** `PayPal-Request-Id` is derived from the approval id, so a
-  retried job cannot refund twice.
+- **Every mutation is idempotent.** `PayPal-Request-Id` is the approval's idempotency key (hash of run, break and
+  action) and an executed approval is never re-executed, so a retried job cannot refund twice.
 - **Webhooks are verified** with PayPal's `verify-webhook-signature`. In `APP_ENV=prod`,
   unverified webhooks are rejected; in dev they are accepted with a logged warning.
 - **Operator API token.** Set `OPERATOR_TOKEN` and every `/api/*` request must carry

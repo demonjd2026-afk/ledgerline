@@ -18,3 +18,6 @@ frontend/dist/
 *.log
 frontend/tsconfig.tsbuildinfo
 backend/.ledgerline-seed.json
+
+# build output
+build/

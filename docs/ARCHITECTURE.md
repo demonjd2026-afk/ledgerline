@@ -20,7 +20,7 @@ audit trail.
                  │  Disputes v1 · Transaction Search · Webhooks             │
                  └───────┬───────────────────────────────▲──────────────────┘
           webhooks (push)│          polling (pull)       │ actions (refund,
-                         │                               │ evidence, invoice)
+                         │                               │ evidence, message)
                  ┌───────▼───────┐               ┌───────┴────────┐
                  │  Ingest API   │               │  PayPal client │
                  │ verify-sig →  │               │ OAuth cache,   │
@@ -45,7 +45,7 @@ audit trail.
                  │  LangGraph     │        │ auto-approve thresholds, │
                  │  triage →      │        │ escalation, blocklists   │
                  │  specialist →  │        └──────────────────────────┘
-                 │  propose →     │
+                 │  policy_gate → │
                  │  [interrupt] → │
                  │  execute       │
                  └───────┬────────┘
@@ -156,9 +156,9 @@ breaks
 ### 2.4 Agent runs and approvals
 
 `agent_runs` records every graph invocation: break id, thread id, model,
-token usage, each tool call (name, args, result hash), the proposal and the
+token usage, each tool call (name, args, result preview), the proposal and the
 final outcome. `approvals` is the human-in-the-loop queue: proposal,
-policy decision (`auto` / `requires_human`), decided_by, decided_at.
+policy decision (`auto` / `requires_human` / `forbidden`), decided_by, decided_at.
 Nothing mutates PayPal without a row here.
 
 ## 3. Ingestion
@@ -210,15 +210,18 @@ One LangGraph graph, checkpointed in Postgres so a run survives restarts and
 can pause indefinitely for a human.
 
 ```
-start ─► load_context ─► triage ─┬─► dispute_defender ─┐
-                                 ├─► refund_advisor ───┼─► propose ─► policy_gate ─┬─ auto ─► execute ─► close
-                                 └─► drift_explainer ──┘                           └─ human ─► [interrupt] ─► execute/decline
+start ─► load_context ─► triage ─► specialist ─► policy_gate ─┬─ auto ──────────► execute ─► close
+                                   (dispute_defender │           ├─ requires_human ► wait_for_human [interrupt] ─► execute / close
+                                    refund_advisor   │           └─ forbidden ────► close
+                                    drift_explainer) ┘
 ```
 
-* **load_context** — pulls the break, the full event chain for its
-  `correlation_id`, and live PayPal state via tools.
+* **load_context** — loads the break and its fingerprint into graph state.
+  The specialist node is what gathers the event chain and live PayPal state, via tools.
 * **triage** — classifies the break, decides which specialist runs, and
   states what evidence is missing. Output is structured (pydantic), not prose.
+* **specialist** — one node whose prompt is chosen by triage; the three
+  specialists are:
 * **dispute_defender** — assembles an evidence packet: order details,
   capture, shipment tracking (via PayPal tracking tool when present),
   customer communication, policy text. Drafts a response in PayPal's
@@ -231,8 +234,9 @@ start ─► load_context ─► triage ─┬─► dispute_defender ─┐
 * **policy_gate** — deterministic. Reads `policy.yaml`; e.g. refunds ≤ $25
   on orders < 30 days old auto-execute, anything touching a dispute requires
   a human, blocklisted customers always escalate.
-* **execute** — the only node that mutates PayPal. Uses idempotency keys
-  derived from the approval id, so retries cannot double-refund.
+* **execute** — the only node that mutates PayPal. Each approval carries an
+  idempotency key (hash of run, break and action) sent as `PayPal-Request-Id`,
+  and an executed approval is never executed again, so retries cannot double-refund.
 
 Tools exposed to the LLM are a curated subset of PayPal's agent toolkit
 (read-heavy: get order, get dispute, list transactions, get tracking) plus
@@ -265,8 +269,9 @@ max_refund_minor: 100000            # hard ceiling even for humans
 min_confidence_for_auto: 0.8        # below this nothing runs unattended
 ```
 
-The gate is plain Python over this file (ADR 0006). Its output is `auto` or `requires_human`
-plus the reasons, and both are stored on the approval row.
+The gate is plain Python over this file (ADR 0006). Its output is `auto`, `requires_human` or
+`forbidden` (above `max_refund_minor`, or a non-positive amount) plus the reasons, and both are
+stored on the approval row.
 
 ## 7. Reliability properties
 
@@ -282,7 +287,8 @@ plus the reasons, and both are stored on the approval row.
 * **Observable.** Structured JSON logs with `request_id`/`job_id`,
   `/metrics` (Prometheus text), `/healthz` that checks DB and PayPal auth.
 * **Safe by default.** `PAYPAL_ENV=sandbox` is enforced unless
-  `ALLOW_LIVE=true`; the execute node refuses to run in live without it.
+  `ALLOW_LIVE=true`; without it the app refuses to start in live, and the PayPal client
+  refuses every mutating call.
 
 ## 8. Simulator and fixture replay
 
@@ -292,7 +298,7 @@ partial refunds, a payout batch and invoices. `ledgerline sim inject`
 corrupts the ledger deliberately (e.g. records a refund that PayPal never
 saw) so reconciliation has something to find.
 
-`ledgerline sim replay fixtures/` replays recorded PayPal payloads through
+`ledgerline sim replay` (the bundled fixture, or a `.jsonl` path) replays recorded PayPal payloads through
 the same pipeline, so the full demo works with no network and judges can
 reproduce it in under five minutes.
 

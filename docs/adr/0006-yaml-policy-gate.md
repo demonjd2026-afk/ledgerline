@@ -13,8 +13,8 @@ misread it, and nobody can prove what version of the prompt was in force.
 ## Decision
 
 `policy.yaml` is a versioned file shipped with the code. The `policy_gate` node is plain
-Python: it reads the proposal and the ledger, evaluates the policy, and returns `auto` or
-`requires_human` with a list of reasons. The approval row stores the policy version and the
+Python: it reads the proposal and the ledger, evaluates the policy, and returns `auto`, `requires_human` or
+`forbidden` with a list of reasons. The approval row stores the policy version and the
 reasons. Changing the policy is a commit, reviewed like any other code.
 
 The policy expresses: per-action auto-approve limits (amount ceiling, order age, exclusions

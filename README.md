@@ -46,8 +46,8 @@ API — but nobody is joining it, and nobody is acting on it at 2 a.m.
 
 ## What Ledgerline does
 
-1. **Ingests** every PayPal webhook (signature-verified) and polls Transaction Search and
-   Disputes as a second source of truth.
+1. **Ingests** every PayPal webhook (signature-verified) and polls Transaction Search,
+   Disputes and Payouts as a second source of truth.
 2. **Records** each one as an immutable, idempotent ledger event, then projects orders,
    captures, refunds, payouts, disputes and invoices from it. Replay is deterministic.
 3. **Reconciles** with thirteen rules that emit typed *breaks*: `expected`, `observed`,
@@ -87,7 +87,7 @@ decisions: [`docs/adr/`](docs/adr/README.md) · operations: [`docs/RUNBOOK.md`](
 | Customer Disputes v1 | dispute polling, `provide-evidence`, `send-message` |
 | Payouts v1 | creator-split payouts; failed-item and fee-variance rules |
 | Invoicing v2 | invoice creation/sending; paid-without-payment rule |
-| PayPal MCP server (`@paypal/mcp`) | the agent's PayPal tool source: get_order, get_dispute, list_disputes, get_invoice, list_transactions, get_shipment_tracking |
+| PayPal MCP server (`@paypal/mcp`) | the agent's PayPal tool source when sandbox credentials are set: `orders.get`, `disputes.get`, `disputes.list`, `invoices.get`, `invoices.list`, `transactions.list`, `shipment.get` (falls back to native read-only PayPal tools; the no-keys demo uses ledger tools only) |
 
 ## Run the demo in five minutes (no PayPal or LLM keys needed)
 
@@ -107,16 +107,17 @@ cd backend && cp .env.example .env && pip install -e ".[dev]" && npm ci && ledge
 # 3. console
 cd ../frontend && npm ci && npm run build && cd ../backend
 
-# 4. replay 18 recorded PayPal inputs through the real pipeline, run the agents, stop at the policy gate
+# 4. replay 20 recorded PayPal inputs through the real pipeline, run the agents, stop at the policy gate
 LLM_MODEL=stub PAYPAL_DRY_RUN=true ledgerline sim replay
 
 # 5. open the console
 ledgerline api            # http://localhost:8000
 ```
 
-You will see 9 open breaks across six scenarios, 6 proposals waiting for approval and 2
-that policy executed on its own (an informational close, and a real duplicate-checkout refund). Approve one in **Approvals** and watch the break resolve
-and the ledger gain a correction event. `ledgerline reconcile` re-runs every rule.
+You will see 9 open breaks across six scenarios, 7 proposals waiting for approval and 1
+that policy executed on its own (the $18.50 duplicate-checkout refund). The two informational
+breaks are listed but not sent to the agent. Approve one in **Approvals** and watch the break
+resolve and the ledger gain a correction event. `ledgerline reconcile` re-runs every rule.
 
 `LLM_MODEL=stub` is a deterministic agent that produces the same proposals every time, so
 the demo is reproducible. Set `LLM_MODEL=anthropic:claude-sonnet-4-5` (or any LangChain
@@ -164,14 +165,18 @@ boots — no PayPal credentials required to evaluate it.
 `backend/policy.yaml` is the whole contract between the agent and the merchant:
 
 ```yaml
+version: 1
 auto_approve:
   refund: { max_amount_minor: 2500, max_order_age_days: 30, not_if: [dispute_open_on_order, prior_refund_on_capture, payer_blocklisted] }
+  ledger_correction: { allowed_rules: [SETTLEMENT_LAG] }
+  no_action: { allowed_rules: [PAYOUT_FEE_VARIANCE, INVOICE_PAID_NO_CAPTURE] }
 never_auto: [provide_evidence, accept_claim, void_authorization, escalate]
 max_refund_minor: 100000
 min_confidence_for_auto: 0.8
 ```
 
-Every approval row records the policy version and the reasons that decided it.
+The gate returns `auto`, `requires_human` or `forbidden` (over the hard ceiling, or a
+non-positive amount). Every approval row records the policy version and the reasons that decided it.
 
 ### Guardrails around the model
 
@@ -192,7 +197,7 @@ Every approval row records the policy version and the reasons that decided it.
 
 ## Hackathon sponsor tools
 
-- **AG Grid** — every table in the console: the Theming API (light and dark params, gridlines,
+- **AG Grid** — the Breaks, Agent runs and Ledger grids: the Theming API (light and dark params, gridlines,
   custom header/row tokens), custom cell renderers for severity and state, quick filter, CSV export.
 - **Render** — `render.yaml` Blueprint: web + worker + managed Postgres, Docker build, pre-deploy
   migrations, generated operator token, fixture seeding on first boot.
@@ -223,9 +228,11 @@ docs/          architecture
 cd backend && python -m pytest -q     # 28 tests, real Postgres
 ```
 
-Covers ledger idempotency and rebuild, each rule, the policy gate, the confidence floor, the
-untrusted-text fence, the human-in-the-loop pause/resume, idempotent execution, the queue, and
-the demo fixture.
+Covers ledger idempotency and rebuild, the amount-mismatch, duplicate, over-refund and drift rules
+directly (the rest through the fixture replay), the policy gate, the confidence floor, the
+untrusted-text fence, the human-in-the-loop pause/resume, idempotent execution, a dead model
+escalating instead of crashing, the queue, and the demo fixture. The 28 includes 11 parametrised
+money cases.
 
 ### Agent evaluation
 
