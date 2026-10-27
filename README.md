@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="docs/demo/ledgerline-demo.mp4"><img src="docs/demo/title-card.png" alt="Ledgerline — checks the books against PayPal, acts within the merchant's rules" width="100%"></a>
+  <a href="https://youtu.be/cKiMP7jMIPw"><img src="docs/demo/title-card.png" alt="Ledgerline — checks the books against PayPal, acts within the merchant's rules" width="100%"></a>
 </p>
 
 # Ledgerline
@@ -7,6 +7,7 @@
 [![CI](https://github.com/demonjd2026-afk/ledgerline/actions/workflows/ci.yml/badge.svg)](https://github.com/demonjd2026-afk/ledgerline/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/demonjd2026-afk/ledgerline/actions/workflows/codeql.yml/badge.svg)](https://github.com/demonjd2026-afk/ledgerline/actions/workflows/codeql.yml)
 [![Live demo](https://img.shields.io/badge/live%20demo-Render-46E3B7)](https://ledgerline-wcpx.onrender.com)
+[![Demo video](https://img.shields.io/badge/demo%20video-YouTube-FF0000?logo=youtube&logoColor=white)](https://youtu.be/cKiMP7jMIPw)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
 **Autonomous revenue-operations agent for PayPal merchants.**
@@ -24,7 +25,7 @@ under a policy engine that decides what runs on its own and what waits for a per
 
 ## Demo
 
-▶ **[Watch the 3-minute demo](docs/demo/ledgerline-demo.mp4)** · **[Open the live console](https://ledgerline-wcpx.onrender.com)**
+▶ **[Watch the 3-minute demo on YouTube](https://youtu.be/cKiMP7jMIPw)** · **[Open the live console](https://ledgerline-wcpx.onrender.com)** · [video file in the repo](docs/demo/ledgerline-demo.mp4)
 
 The video follows one dispute and one duplicate checkout from a PayPal webhook to a resolved
 break: the agent investigates through PayPal's MCP server, the policy gate pauses the dispute for

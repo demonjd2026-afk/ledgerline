@@ -6,6 +6,10 @@ Copy-ready text for the submission form. Keep the headings Devpost asks for; tri
 
 Ledgerline
 
+## Video demo link
+
+https://youtu.be/cKiMP7jMIPw
+
 ## Tagline
 
 An autonomous revenue-operations agent for PayPal merchants: an independent ledger, continuous reconciliation against PayPal, and policy-gated AI agents that fix what breaks.
