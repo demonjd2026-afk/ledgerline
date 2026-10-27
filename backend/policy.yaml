@@ -22,8 +22,6 @@ auto_approve:
 # Actions that always wait for a human, whatever the amount.
 never_auto:
   - provide_evidence
-  - accept_claim
-  - void_authorization
   - escalate
 
 # Payers that always escalate (sandbox examples; replace in deployment).

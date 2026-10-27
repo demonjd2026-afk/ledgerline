@@ -170,7 +170,7 @@ auto_approve:
   refund: { max_amount_minor: 2500, max_order_age_days: 30, not_if: [dispute_open_on_order, prior_refund_on_capture, payer_blocklisted] }
   ledger_correction: { allowed_rules: [SETTLEMENT_LAG] }
   no_action: { allowed_rules: [PAYOUT_FEE_VARIANCE, INVOICE_PAID_NO_CAPTURE] }
-never_auto: [provide_evidence, accept_claim, void_authorization, escalate]
+never_auto: [provide_evidence, escalate]
 max_refund_minor: 100000
 min_confidence_for_auto: 0.8
 ```
@@ -225,13 +225,12 @@ docs/          architecture
 ## Tests
 
 ```bash
-cd backend && python -m pytest -q     # 28 tests, real Postgres
+cd backend && python -m pytest -q     # 32 tests, real Postgres
 ```
 
-Covers ledger idempotency and rebuild, the amount-mismatch, duplicate, over-refund and drift rules
-directly (the rest through the fixture replay), the policy gate, the confidence floor, the
+Covers ledger idempotency and rebuild, each rule (directly or through the fixture replay), the policy gate, the confidence floor, the
 untrusted-text fence, the human-in-the-loop pause/resume, idempotent execution, a dead model
-escalating instead of crashing, the queue, and the demo fixture. The 28 includes 11 parametrised
+escalating instead of crashing, the queue, and the demo fixture. The 32 includes 11 parametrised
 money cases.
 
 ### Agent evaluation

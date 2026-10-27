@@ -118,9 +118,9 @@ sequenceDiagram
 ledger_events
   id              bigserial
   event_key       text  UNIQUE   -- idempotency: "<source>:<external_id>:<event_type>"
-  source          text           -- webhook | poll | api | sim
+  source          text           -- webhook | poll | api | sim | correction
   event_type      text           -- normalised, e.g. CAPTURE_COMPLETED
-  resource_type   text           -- order | capture | refund | payout_item | dispute | invoice
+  resource_type   text           -- order | authorization | capture | refund | payout_batch | payout_item | dispute | invoice | transaction
   resource_id     text
   occurred_at     timestamptz    -- PayPal's time
   recorded_at     timestamptz    -- our time
@@ -138,15 +138,15 @@ place that parses PayPal's string amounts.
 ### 2.2 Projections
 
 Projections are rebuilt from events (`ledgerline rebuild`) and are the
-tables the reconciler and dashboard read: `orders`, `captures`, `refunds`,
-`payout_items`, `disputes`, `invoices`. Each carries `last_event_id` so a
+tables the reconciler and dashboard read: `orders`, `authorizations`, `captures`, `refunds`,
+`payout_items`, `disputes`, `invoices`, `transactions`. Each carries `last_event_id` so a
 rebuild is verifiable.
 
 ### 2.3 Breaks
 
 ```
 breaks
-  id, rule, severity (info|warn|critical), status (open|in_progress|resolved|dismissed)
+  id, rule, severity (info|warn|critical), status (open|in_progress|awaiting_approval|resolved|dismissed)
   resource_type, resource_id, correlation_id
   expected jsonb, observed jsonb, delta_minor
   opened_at, resolved_at, resolution (jsonb: who/what/why)
@@ -263,7 +263,7 @@ auto_approve:
     allowed_rules: [SETTLEMENT_LAG]
   no_action:
     allowed_rules: [PAYOUT_FEE_VARIANCE, INVOICE_PAID_NO_CAPTURE]
-never_auto: [provide_evidence, accept_claim, void_authorization, escalate]
+never_auto: [provide_evidence, escalate]
 payer_blocklist: []
 max_refund_minor: 100000            # hard ceiling even for humans
 min_confidence_for_auto: 0.8        # below this nothing runs unattended
