@@ -1,14 +1,15 @@
 """initial schema
 
 Revision ID: 0001
-Revises: 
+Revises:
 Create Date: 2026-10-26 06:54:48.466900
 """
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "0001"
 down_revision = None
