@@ -11,6 +11,8 @@ The thesis: AI should not be a chat box on top of payments. It should be a
 worker inside a control loop that already has guardrails, idempotency and an
 audit trail.
 
+![Ledgerline architecture](architecture.svg)
+
 ```
                  ┌──────────────────────────────────────────────────────────┐
                  │                         PayPal                           │

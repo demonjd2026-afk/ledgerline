@@ -1,90 +1,133 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="560" viewBox="0 0 1100 560" font-family="Inter, system-ui, sans-serif" font-size="13">
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="760" viewBox="0 0 1240 760" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
   <defs>
-    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5 0 10z" fill="#4b5563"/></marker>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5 0 10z" fill="#3f4a5a"/></marker>
+    <marker id="arrg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5 0 10z" fill="#2f7a4f"/></marker>
+    <marker id="arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5 0 10z" fill="#b2641a"/></marker>
     <style>
-      .box{fill:#fbfcf9;stroke:#cfd7cc;stroke-width:1.2;rx:6}
-      .ink{fill:#16202f;stroke:#16202f}
-      .t{fill:#16202f}.m{fill:#4b5563}.s{fill:#8a93a1;font-size:11.5px}
-      .h{font-weight:700;font-size:14px}
-      .edge{stroke:#4b5563;stroke-width:1.4;fill:none;marker-end:url(#a)}
-      .lbl{fill:#4b5563;font-size:11px}
-      .red{fill:#b0313f}.green{fill:#286644}.blue{fill:#2c5a98}
+      .bg{fill:#f3f4f1}
+      .band{fill:#e9ecf3;stroke:#c9d0dd;stroke-width:1.2}
+      .box{fill:#ffffff;stroke:#c7cdd6;stroke-width:1.2}
+      .boxg{fill:#f1f7f3;stroke:#9ec4ad;stroke-width:1.2}
+      .boxo{fill:#fdf5ea;stroke:#e2b47c;stroke-width:1.2}
+      .boxb{fill:#eef3fc;stroke:#9db5e3;stroke-width:1.2}
+      .db{fill:#f6f3ea;stroke:#d4c7a2;stroke-width:1.2}
+      .h{font-weight:700;font-size:14.5px;fill:#16202f}
+      .t{fill:#2b3442}
+      .s{fill:#7b8594;font-size:11.5px}
+      .k{fill:#7b8594;font-size:11px;letter-spacing:.06em;font-weight:600}
+      .e{stroke:#3f4a5a;stroke-width:1.4;fill:none;marker-end:url(#arr)}
+      .eg{stroke:#2f7a4f;stroke-width:1.6;fill:none;marker-end:url(#arrg)}
+      .eo{stroke:#b2641a;stroke-width:1.6;fill:none;marker-end:url(#arro)}
+      .ed{stroke:#8a93a1;stroke-width:1.2;fill:none;stroke-dasharray:4 4;marker-end:url(#arr)}
+      .lbl{fill:#3f4a5a;font-size:11.5px}
+      .lblg{fill:#2f7a4f;font-size:11.5px;font-weight:600}
+      .lblo{fill:#b2641a;font-size:11.5px;font-weight:600}
+      .step{fill:#eaf0ec;stroke:#b8c9bd;stroke-width:1}
+      .stept{fill:#2b3442;font-size:12px}
     </style>
   </defs>
-  <rect width="1100" height="560" fill="#eef1ec"/>
+  <rect class="bg" width="1240" height="760"/>
 
-  <!-- PayPal -->
-  <rect x="30" y="30" width="1040" height="78" class="box"/>
-  <text x="50" y="56" class="h t">PayPal (sandbox)</text>
-  <text x="50" y="80" class="m">Webhooks · Orders v2 · Payments v2 · Transaction Search · Disputes v1 · Payouts v1 · Invoicing v2 · PayPal MCP server (@paypal/mcp)</text>
-  <text x="50" y="98" class="s">push: signed webhooks  ·  pull: polling + direct reads  ·  tools: read-only MCP for the agent  ·  write: executor only</text>
+  <!-- PayPal band -->
+  <rect x="30" y="28" width="1140" height="78" rx="8" class="band"/>
+  <text x="50" y="54" class="h">PayPal (sandbox)</text>
+  <text x="50" y="76" class="t">Webhooks · Orders v2 · Payments v2 · Transaction Search · Disputes v1 · Payouts v1 · Invoicing v2 · PayPal MCP server (@paypal/mcp)</text>
+  <text x="50" y="95" class="s">push: signed webhooks   ·   pull: polling + direct reads   ·   tools: read-only MCP for the agent   ·   writes: executor only</text>
 
-  <!-- Ingest -->
-  <rect x="30" y="150" width="235" height="96" class="box"/>
-  <text x="50" y="176" class="h t">Ingest</text>
-  <text x="50" y="198" class="m">verify-webhook-signature</text>
-  <text x="50" y="216" class="m">inbox → Postgres job queue</text>
-  <text x="50" y="234" class="s">SKIP LOCKED · dedupe · retries</text>
+  <!-- arrows from PayPal -->
+  <path class="e" d="M130 106 V176"/>
+  <text x="140" y="146" class="lbl">signed webhooks</text>
+  <path class="e" d="M372 106 V176"/>
+  <text x="382" y="146" class="lbl">polling, direct reads</text>
 
-  <!-- Ledger -->
-  <rect x="300" y="150" width="235" height="96" class="box"/>
-  <text x="320" y="176" class="h t">Ledger</text>
-  <text x="320" y="198" class="m">append-only events, idempotent</text>
-  <text x="320" y="216" class="m">deterministic projections</text>
-  <text x="320" y="234" class="s">rebuildable · integer money</text>
+  <!-- Row 1: pipeline -->
+  <rect x="30" y="178" width="200" height="112" rx="8" class="box"/>
+  <text x="46" y="203" class="h">1 · Ingest</text>
+  <text x="46" y="226" class="t">verify-webhook-signature</text>
+  <text x="46" y="244" class="t">inbox → job queue (2xx in ms)</text>
+  <text x="46" y="266" class="s">SKIP LOCKED · dedupe · retries</text>
 
-  <!-- Reconcile -->
-  <rect x="570" y="150" width="235" height="96" class="box"/>
-  <text x="590" y="176" class="h t">Reconcile</text>
-  <text x="590" y="198" class="m">13 rules → typed breaks</text>
-  <text x="590" y="216" class="m">expected · observed · delta</text>
-  <text x="590" y="234" class="s">auto-resolve when a rule stops firing</text>
+  <path class="e" d="M230 234 H258"/>
+  <rect x="260" y="178" width="220" height="112" rx="8" class="box"/>
+  <text x="276" y="203" class="h">2 · Ledger</text>
+  <text x="276" y="226" class="t">append-only, idempotent events</text>
+  <text x="276" y="244" class="t">deterministic projections</text>
+  <text x="276" y="266" class="s">rebuildable · integer money</text>
 
-  <!-- Console -->
-  <rect x="840" y="150" width="230" height="96" class="box"/>
-  <text x="860" y="176" class="h t">Operator console</text>
-  <text x="860" y="198" class="m">breaks · decision sheet</text>
-  <text x="860" y="216" class="m">approvals · traces · ledger</text>
-  <text x="860" y="234" class="s">React · AG Grid · token-guarded API</text>
+  <path class="e" d="M480 234 H508"/>
+  <rect x="510" y="178" width="200" height="112" rx="8" class="box"/>
+  <text x="526" y="203" class="h">3 · Reconcile</text>
+  <text x="526" y="226" class="t">13 rules → typed breaks</text>
+  <text x="526" y="244" class="t">expected · observed · delta</text>
+  <text x="526" y="266" class="s">auto-resolves when a rule stops firing</text>
 
-  <!-- Agent runtime -->
-  <rect x="30" y="300" width="775" height="150" class="box"/>
-  <text x="50" y="326" class="h t">Agent runtime — LangGraph, checkpointed in Postgres</text>
-  <g font-size="12.5">
-    <rect x="50" y="345" width="118" height="40" rx="5" fill="#e4e9e2" stroke="#cfd7cc"/><text x="109" y="369" text-anchor="middle" class="t">load context</text>
-    <rect x="190" y="345" width="100" height="40" rx="5" fill="#e4e9e2" stroke="#cfd7cc"/><text x="240" y="369" text-anchor="middle" class="t">triage</text>
-    <rect x="312" y="345" width="150" height="40" rx="5" fill="#e4e9e2" stroke="#cfd7cc"/><text x="387" y="363" text-anchor="middle" class="t">specialist</text><text x="387" y="378" text-anchor="middle" class="s">read-only tools, bounded</text>
-    <rect x="484" y="345" width="110" height="40" rx="5" fill="#dfe8f4" stroke="#2c5a98"/><text x="539" y="363" text-anchor="middle" class="blue" font-weight="700">policy gate</text><text x="539" y="378" text-anchor="middle" class="s">YAML, deterministic</text>
-    <rect x="616" y="330" width="170" height="32" rx="5" fill="#dcecdf" stroke="#286644"/><text x="701" y="351" text-anchor="middle" class="green" font-weight="700">auto → execute</text>
-    <rect x="616" y="372" width="170" height="32" rx="5" fill="#f7ead2" stroke="#b9791f"/><text x="701" y="393" text-anchor="middle" fill="#b9791f" font-weight="700">interrupt → human</text>
-    <path d="M168 365H190M290 365H312M462 365H484M594 358L616 346M594 372L616 388" class="edge"/>
-  </g>
-  <text x="50" y="420" class="s">Structured outputs (headline, rationale, action, exact ids/amounts) · amounts bounded by the ledger · untrusted buyer text fenced · confidence floor · token accounting · eval harness</text>
-  <text x="50" y="438" class="s">The LLM never holds a write tool. One executor, idempotency keys derived from the approval id, dry-run mode for demos.</text>
+  <path class="e" d="M710 234 H738"/>
+  <rect x="740" y="178" width="240" height="112" rx="8" class="box"/>
+  <text x="756" y="203" class="h">4 · Agent (LangGraph)</text>
+  <rect x="756" y="214" width="62" height="24" rx="5" class="step"/><text x="787" y="230" text-anchor="middle" class="stept">context</text>
+  <path class="e" d="M818 226 H828"/>
+  <rect x="830" y="214" width="54" height="24" rx="5" class="step"/><text x="857" y="230" text-anchor="middle" class="stept">triage</text>
+  <path class="e" d="M884 226 H894"/>
+  <rect x="896" y="214" width="68" height="24" rx="5" class="step"/><text x="930" y="230" text-anchor="middle" class="stept">specialist</text>
+  <text x="756" y="256" class="s">read-only tools: ledger + PayPal MCP</text>
+  <text x="756" y="272" class="s">output: structured proposal, never prose</text>
 
-  <!-- Postgres -->
-  <rect x="840" y="300" width="230" height="150" class="box"/>
-  <text x="860" y="326" class="h t">Postgres</text>
-  <text x="860" y="348" class="m">ledger_events · projections</text>
-  <text x="860" y="366" class="m">breaks · agent_runs · approvals</text>
-  <text x="860" y="384" class="m">jobs · webhook_inbox</text>
-  <text x="860" y="402" class="m">langgraph checkpoints</text>
-  <text x="860" y="430" class="s">single source of truth · migrations</text>
+  <path class="e" d="M980 234 H1008"/>
+  <rect x="1010" y="178" width="160" height="112" rx="8" class="boxb"/>
+  <text x="1026" y="203" class="h">5 · Policy gate</text>
+  <text x="1026" y="226" class="t">versioned YAML</text>
+  <text x="1026" y="244" class="t">thresholds · blocklists</text>
+  <text x="1026" y="262" class="t">confidence floor</text>
+  <text x="1026" y="280" class="s">deterministic</text>
 
-  <!-- edges -->
-  <path d="M147 108V150" class="edge"/><text x="155" y="134" class="lbl">webhooks</text>
-  <path d="M417 108V150" class="edge"/><text x="425" y="134" class="lbl">polls, direct reads</text>
-  <path d="M265 198H300" class="edge"/>
-  <path d="M535 198H570" class="edge"/>
-  <path d="M687 246V300" class="edge"/><text x="695" y="278" class="lbl">new breaks → jobs</text>
-  <path d="M805 198H840" class="edge"/>
-  <path d="M955 246V300" class="edge"/>
-  <path d="M955 108V150" class="edge"/><text x="963" y="134" class="lbl">approve → execute</text>
-  <path d="M750 300V246" class="edge"/><text x="758" y="278" class="lbl">corrections are events</text>
+  <!-- Policy gate outputs -->
+  <path class="eg" d="M1120 290 V368"/>
+  <text x="1114" y="320" class="lblg" text-anchor="end">within policy</text>
+  <path class="eo" d="M1040 290 V330 H905 V368"/>
+  <text x="918" y="348" class="lblo">needs a person — the graph interrupts</text>
 
-  <!-- Deploy strip -->
-  <rect x="30" y="480" width="1040" height="52" class="box"/>
-  <text x="50" y="503" class="h t">Deploy</text>
-  <text x="120" y="503" class="m">Render Blueprint: web (API + console) · worker (queue, poller, agents) · managed Postgres  —  Docker image, migrations pre-deploy, OPERATOR_TOKEN, prod rejects unverified webhooks</text>
-  <text x="120" y="521" class="s">CI: pytest (28, real Postgres) · ruff · bandit · pip-audit · npm audit · CodeQL</text>
+  <!-- Row 2 -->
+  <rect x="740" y="370" width="220" height="112" rx="8" class="boxo"/>
+  <text x="756" y="395" class="h">6 · Operator console</text>
+  <text x="756" y="418" class="t">proposal · evidence · reasons</text>
+  <text x="756" y="436" class="t">approve / decline · tool trace</text>
+  <text x="756" y="458" class="s">React + AG Grid · token-guarded API</text>
+
+  <path class="eg" d="M960 426 H1008"/>
+  <text x="984" y="415" class="lblg" text-anchor="middle" font-size="10.5">approve</text>
+  <rect x="1010" y="370" width="160" height="112" rx="8" class="boxg"/>
+  <text x="1026" y="395" class="h">7 · Executor</text>
+  <text x="1026" y="418" class="t">the only code that</text>
+  <text x="1026" y="436" class="t">writes to PayPal</text>
+  <text x="1026" y="458" class="s">idempotency key = approval id</text>
+  <text x="1026" y="474" class="s">dry-run mode for demos</text>
+
+  <!-- Executor → PayPal (write) -->
+  <path class="e" d="M1170 426 H1200 V96 H1172"/>
+  <text x="1216" y="262" class="lbl" transform="rotate(-90 1216 262)" text-anchor="middle">writes: refund · evidence · message · invoice</text>
+
+  <!-- Executor → Ledger (correction events) -->
+  <path class="e" d="M1090 482 V520 H370 V292"/>
+  <text x="700" y="512" class="lbl" text-anchor="middle">correction events (append-only; the ledger is never edited)</text>
+
+
+  <!-- Postgres band -->
+  <rect x="30" y="548" width="1140" height="84" rx="8" class="db"/>
+  <text x="50" y="574" class="h">Postgres — single source of truth</text>
+  <text x="50" y="597" class="t">ledger_events (append-only) · projections: orders, captures, refunds, payouts, disputes, invoices · breaks · agent_runs · approvals</text>
+  <text x="50" y="617" class="t">jobs (FOR UPDATE SKIP LOCKED) · webhook_inbox · LangGraph checkpoints — every box above reads and writes here; the worker drains jobs</text>
+
+  <!-- Deploy band -->
+  <rect x="30" y="656" width="1140" height="76" rx="8" class="band"/>
+  <text x="50" y="681" class="h">Deploy &amp; CI</text>
+  <text x="50" y="703" class="t">Render Blueprint: web (FastAPI + console) · worker (queue, poller, agents) · managed Postgres · one Docker image · migrations pre-deploy</text>
+  <text x="50" y="722" class="s">GitHub Actions: pytest (28 tests, real Postgres) · ruff · bandit · pip-audit · npm audit · CodeQL</text>
+
+  <!-- Guardrail note -->
+  <rect x="30" y="370" width="690" height="112" rx="8" class="box"/>
+  <text x="46" y="395" class="h">Guardrails</text>
+  <text x="46" y="418" class="t">The model never holds a write tool. Proposals are typed; ids and amounts are checked against the ledger.</text>
+  <text x="46" y="436" class="t">A refund can never exceed its capture. Buyer-written text is fenced as data, not instructions.</text>
+  <text x="46" y="454" class="t">Low confidence, or anything touching a dispute, always waits for a person.</text>
+  <text x="46" y="474" class="s">One executor, one audit trail: every approval records the policy version, its reasons and the exact PayPal request.</text>
 </svg>

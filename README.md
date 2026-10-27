@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="docs/demo/ledgerline-demo.mp4"><img src="docs/demo/title-card.png" alt="Ledgerline — checks the books against PayPal, acts within the merchant's rules" width="100%"></a>
+</p>
+
 # Ledgerline
 
 [![CI](https://github.com/demonjd2026-afk/ledgerline/actions/workflows/ci.yml/badge.svg)](https://github.com/demonjd2026-afk/ledgerline/actions/workflows/ci.yml)
@@ -17,6 +21,14 @@ agents to fix what breaks — drafting dispute evidence, computing refunds, expl
 under a policy engine that decides what runs on its own and what waits for a person.
 
 > Built for the PayPal AI Hackathon 2026. Sandbox only. MIT licence.
+
+## Demo
+
+▶ **[Watch the 3-minute demo](docs/demo/ledgerline-demo.mp4)** · **[Open the live console](https://ledgerline-wcpx.onrender.com)**
+
+The video follows one dispute and one duplicate checkout from a PayPal webhook to a resolved
+break: the agent investigates through PayPal's MCP server, the policy gate pauses the dispute for
+a person and refunds the $18.50 duplicate on its own, and every step lands in the ledger.
 
 ## Submission summary
 
@@ -51,7 +63,15 @@ API — but nobody is joining it, and nobody is acting on it at 2 a.m.
 7. **Shows** all of it in an operator console: breaks as ledger lines, proposals with the
    policy's reasons, approve/decline, and the agent's full tool trace.
 
-![Ledgerline architecture](docs/architecture.svg)
+## Architecture
+
+![Ledgerline architecture: PayPal → ingest → ledger → reconcile → LangGraph agent → policy gate → operator console / executor, all on Postgres, deployed on Render](docs/architecture.svg)
+
+Seven stages, one direction. Facts enter on the left (signed webhooks, polling), become
+append-only ledger events, are reconciled into typed breaks, and are investigated by an agent
+that only holds read-only tools. The policy gate is the only fork: within policy, the executor
+acts; otherwise the graph interrupts and waits in the operator console. Whatever the executor
+does comes back into the ledger as a correction event — the ledger itself is never edited.
 
 Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · security: [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) ·
 decisions: [`docs/adr/`](docs/adr/README.md) · operations: [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
