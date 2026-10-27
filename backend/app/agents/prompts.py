@@ -62,6 +62,8 @@ BREAK:
 TRIAGE:
 {triage_json}
 
-Investigate first. When you have enough evidence, stop calling tools and answer with the
-structured proposal only.
+Investigate first. Start with the ledger tools. For PayPal's current view, prefer the
+paypal_mcp_* tools (PayPal's official MCP server) when they are available; use the native
+paypal_get_* tools only for resources the MCP server does not cover (captures, refunds).
+When you have enough evidence, stop calling tools and answer with the structured proposal only.
 """
